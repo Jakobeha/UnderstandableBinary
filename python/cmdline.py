@@ -1,12 +1,14 @@
 from pathlib import Path
+from download import download
+from compile import compile
 
 
 def download_cmd(args):
-    pass  # TODO
+    download(args.o, args.t, args.n, args.f)
 
 
 def preprocess_compile_cmd(args):
-    pass  # TODO
+    compile(args.i, args.o, args.t, args.n, args.f)
 
 
 def preprocess_in_ir_cmd(args):
@@ -65,6 +67,11 @@ def main():
         required=True
     )
     download_parser.add_argument(
+        "-f",
+        help="force overwrite of output directory",
+        action="store_true"
+    )
+    download_parser.add_argument(
         "-t",
         type=str,
         help="code type",
@@ -93,6 +100,11 @@ def main():
         type=Path,
         help="output directory (defaults to input)",
         default=None
+    )
+    preprocess_parser.add_argument(
+        "-f",
+        help="force overwrite of data in output directory",
+        action="store_true"
     )
     preprocess_parser.add_argument(
         "-t",
@@ -142,6 +154,11 @@ def main():
         required=True
     )
     split_parser.add_argument(
+        "-f",
+        help="force overwrite of output directory",
+        action="store_true"
+    )
+    split_parser.add_argument(
         "-n",
         type=int,
         help="number of files to take from the original dataset (default = 0 = all files)",
@@ -176,6 +193,11 @@ def main():
         type=Path,
         help="output (model) directory (defaults to \"{input directory}/model\")",
         default=None
+    )
+    train_ir_parser.add_argument(
+        "-f",
+        help="force overwrite of output directory",
+        action="store_true"
     )
     train_ir_parser.add_argument(
         "-t",
@@ -213,6 +235,11 @@ def main():
         required=True
     )
     transform_ir_parser.add_argument(
+        "-f",
+        help="force overwrite of output directory",
+        action="store_true"
+    )
+    transform_ir_parser.add_argument(
         "-m",
         type=Path,
         help="model directory",
@@ -235,6 +262,11 @@ def main():
         type=Path,
         help="output (model) directory",
         required=True
+    )
+    train_parser.add_argument(
+        "-f",
+        help="force overwrite of output directory",
+        action="store_true"
     )
     train_parser.add_argument(
         "-t",
@@ -276,6 +308,11 @@ def main():
         type=Path,
         help="output directory",
         required=True
+    )
+    transform_parser.add_argument(
+        "-f",
+        help="force overwrite of output directory",
+        action="store_true"
     )
     transform_parser.add_argument(
         "-m",

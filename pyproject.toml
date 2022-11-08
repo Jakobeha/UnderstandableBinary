@@ -19,6 +19,7 @@ torch = [
 numpy = "^1.23.4"
 torch-utils = "^0.1.2"
 sklearn = "^0.0.post1"
+tqdm = "^4.64.1"
 
 [build-system]
 requires = ["poetry-core"]
