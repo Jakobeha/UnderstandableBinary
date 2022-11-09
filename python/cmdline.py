@@ -4,7 +4,7 @@ from compile import compile
 
 
 def download_cmd(args):
-    download(args.o, args.t, args.n, args.f)
+    download(args.i, args.o, args.t, args.n, args.f)
 
 
 def preprocess_compile_cmd(args):
@@ -58,7 +58,13 @@ def main():
 
     download_parser = granular_subparsers.add_parser(
         "download",
-        help="download data from \"The Stack\" dataset on HuggingFace"
+        help="download data from a package repository (default: Debian stable)"
+    )
+    download_parser.add_argument(
+        "-i",
+        type=str,
+        help="input package repository, format must be same as //sources.debian.org/api/... (which is the default)",
+        default="https://sources.debian.org/api/..."
     )
     download_parser.add_argument(
         "-o",
@@ -255,7 +261,13 @@ def main():
 
     train_parser = subparsers.add_parser(
         "train",
-        help="download and train a model using data from HuggingFace \"The Stack\""
+        help="download and train a model using data from a package repository (default: Debian Stable)"
+    )
+    train_parser.add_argument(
+        "-i",
+        type=str,
+        help="input package repository, format must be same as //sources.debian.org/api/... (which is the default)",
+        default="https://sources.debian.org/api/..."
     )
     train_parser.add_argument(
         "-o",

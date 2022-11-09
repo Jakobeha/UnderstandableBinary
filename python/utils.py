@@ -2,6 +2,9 @@ from pathlib import Path
 import shutil
 
 
+PROJECT_PATH = Path(__file__).parent.parent
+
+
 def check_dir(path: Path):
     """assert that the path exists and is a directory"""
     if not path.exists():
