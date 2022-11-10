@@ -34,4 +34,4 @@ RUN cd /scraper && cargo build
 RUN ./install-packages.sh
 
 # Run scraper
-RUN cd /scraper && cargo run
+RUN cd /scraper && cargo run -- /sources /data
