@@ -1,5 +1,6 @@
-# This image simply downloads and installs a bunch of packages with source.
+# This image simply downloads and installs a bunch of packages (n packages) with source.
 # We can later extract the source and compiled binaries
+ARG N=10
 
 FROM debian:stable-slim
 LABEL maintainer="Jakob Hain <jakobeha@gmail.com>"
@@ -31,7 +32,7 @@ RUN set -eux; \
 RUN cd /scraper && cargo build
 
 # Install packages
-RUN ./install-packages.sh
+RUN ./install-packages.sh $N
 
 # Run scraper
 RUN cd /scraper && cargo run -- /sources /data

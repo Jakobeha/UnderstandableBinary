@@ -1,8 +1,10 @@
 use std::env::args;
 use std::ffi::OsStr;
+use std::fs::File;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use walkdir::WalkDir;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn main() {
@@ -30,9 +32,9 @@ fn main() {
         if let Err(_) = copy_file(&in_src_path, &out_src_path) {
             let _ = std::fs::remove_file(&out_obj_path);
         }
-        num_processed.fetch_add(1, Ordering::SeqCst);
+        num_processed.fetch_add(1, Ordering::Release);
     });
-    println!("Processed {} files!", num_processed.load(Ordering::Acquire));
+    println!("Processed {} source/object pairs!", num_processed.load(Ordering::Acquire));
 }
 
 fn copy_file(in_path: &Path, out_path: &Path) -> std::io::Result<()> {

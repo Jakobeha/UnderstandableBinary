@@ -1,11 +1,16 @@
 #!/bin/bash
 
-N=40
+N="$1"
+if [ -z "$N" ]; then
+  echo "Usage: $0 <number of packages to install>"
+  exit 1
+fi
+
 
 apt-get install dpkg-dev -y --allow-unauthenticated
 
 echo "*** FETCHING PACKAGE LIST ($N PACKAGES)"
-apt-cache search "" | head -$N > packages.txt
+apt-cache search "" | head -"$N" > packages.txt
 
 echo "*** INSTALLING PACKAGES"
 recurse () {
