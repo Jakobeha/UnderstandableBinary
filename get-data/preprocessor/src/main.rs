@@ -3,7 +3,7 @@ mod c_ast;
 use std::env::args;
 use std::ffi::OsStr;
 use std::fs::File;
-use std::io::{Seek, Write};
+use std::io::Write;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use walkdir::{DirEntry, WalkDir};
 use std::path::{Path, PathBuf};
@@ -33,7 +33,7 @@ fn main() {
         .follow_links(false)
         .into_iter()
         // Multi-threaded (comment out for debugging, otherwise lldb loses connection)
-        // .par_bridge()
+        .par_bridge()
         // Should not have unreadable directories
         .map(|e| e.expect("Unreadable directory"))
         .filter(|e| e.path().extension() == Some(OsStr::new("o")) && e.path().with_extension("c").exists());
@@ -150,24 +150,6 @@ fn objdump(in_path: &Path, out_path: &Path) -> std::io::Result<()> {
         .status()?;
     if !status.success() {
         return Err(std::io::Error::new(std::io::ErrorKind::Other, "objdump failed"));
-    }
-    Ok(())
-}
-
-fn clang_e(in_path: &Path, out_path: &Path) -> std::io::Result<()> {
-    let out_file = File::create(out_path)?;
-    let out_pipe = Stdio::from(out_file);
-
-    let status = Command::new("clang")
-        .arg("-E")
-        .arg(in_path)
-        .stdout(out_pipe)
-        .status()?;
-    if is_path_empty(out_path)? {
-        return Err(std::io::Error::new(std::io::ErrorKind::Other, "clang -E failed (nothing written)"));
-    }
-    if !status.success() {
-        eprintln!("Warning: clang -E exit code != 0 (still produced output)");
     }
     Ok(())
 }
