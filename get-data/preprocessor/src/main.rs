@@ -1,17 +1,19 @@
 mod io_write_to_fmt_write;
+mod c_ast;
 
 use std::env::args;
 use std::ffi::OsStr;
 use std::fs::File;
-use std::io::{Write, stderr};
+use std::io::Write;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use walkdir::{DirEntry, WalkDir};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use clang_ast::SourceRange;
 use regex::Regex;
 use lazy_static::lazy_static;
-use io_write_to_fmt_write::{IoWrite2FmtWrite, IoWrite2FmtWriteCatch};
+use crate::c_ast::{Data, DoRecurse};
 
 fn main() {
     let in_dir = PathBuf::from(args().nth(1).expect("Missing input directory"));
@@ -54,72 +56,59 @@ fn _process(in_src_path: &Path, in_obj_path: &Path, out_dir: &Path) -> std::io::
     std::fs::create_dir_all(out_dir)?;
 
     // Copy input without includes, and objdump assembly (before breaking up these files)
+    // Also parse source code via clang -ast-dump
     let out_full_assembly_temp = out_dir.join("full.s");
+    let out_c_ast_temp = out_dir.join("full.c.json");
     objdump(in_obj_path, &out_full_assembly_temp)?;
+    parse_via_clang_ast_dump(in_src_path, &out_c_ast_temp)?;
 
-    // Parse C code
-    let config = lang_c::driver::Config::default();
-    let in_c = lang_c::driver::parse(&config, &in_src_path)
-        .map_err(|error| std::io::Error::new(std::io::ErrorKind::Other, error))?;
+    // Read C ast from dump, read C source code ast references
+    let in_c = c_ast::read_from_path(&out_c_ast_temp)?;
+    let in_c_source = std::fs::read_to_string(in_src_path)?;
 
     // Break assembly into lines, allocate vector to store them
     let in_obj_text = std::fs::read_to_string(in_obj_path)?;
     let in_obj_lines = in_obj_text.lines().collect::<Vec<_>>();
 
+    let process_fun = |name: &str, range: &SourceRange| {
+        let start = range.begin.spelling_loc.as_ref().expect("clang missing function location info").offset;
+        let end = range.end.spelling_loc.as_ref().expect("clang missing function location info").offset;
+        let body = &in_c_source[start..end];
+
+        let fn_path = out_dir.join(name);
+        let mut in_ir_file = File::create(fn_path.with_extension("c"))?;
+        let mut out_ir_file = File::create(fn_path.with_extension("s"))?;
+        // Like _process, don't keep one corresponding file without the other
+        _process_fun(&in_obj_lines, name, body, &mut in_ir_file, &mut out_ir_file).map_err(|error| {
+            eprintln!("Error during translating, see below");
+            std::fs::remove_file(fn_path.with_extension("c")).expect("Failed to remove input IR file");
+            std::fs::remove_file(fn_path.with_extension("s")).expect("Failed to remove output IR file");
+            error
+        })
+    };
+
     // Visitor:
     //   For each declaration (training example) in the C code, extract the corresponding assembly
-    //   create 2 corresponding files to store both
-    struct Visitor<'a> {
-        in_src_path: &'a Path,
-        in_obj_lines: &'a [&'a str],
-        out_dir: &'a Path,
-        err_printer: &'a mut lang_c::print::Printer<'a>
-    }
-    impl<'a> Visitor<'a> {
-        fn _visit_function_definition(&mut self, function_definition: &'a lang_c::ast::FunctionDefinition, span: &'a lang_c::span::Span) -> std::io::Result<()> {
-            match &function_definition.declarator.node.kind.node {
-                lang_c::ast::DeclaratorKind::Identifier(fn_ident) => {
-                    let fn_name = &fn_ident.node.name;
-                    let fn_path = self.out_dir.join(fn_name);
-                    let mut in_ir_file = File::create(fn_path.with_extension("c"))?;
-                    let mut out_ir_file = File::create(fn_path.with_extension("s"))?;
-                    // Like _process, don't keep one corresponding file without the other
-                    _process_fun(&self.in_obj_lines, fn_name, function_definition, span, &mut in_ir_file, &mut out_ir_file).map_err(|error| {
-                        eprintln!("Translation error for {}, see below", fn_name);
-                        std::fs::remove_file(fn_path.with_extension("c")).expect("Failed to remove input IR file");
-                        std::fs::remove_file(fn_path.with_extension("s")).expect("Failed to remove output IR file");
-                        error
-                    })
-                },
-                _ => {
-                    Err(std::io::Error::new(std::io::ErrorKind::Other, "Unexpected function declarator kind"))
-                },
+    //   create 2 corresponding files to store both.
+    //   Also print errors but don't stop processing, just skip
+    c_ast::visit(&in_c, |node| match &node.kind {
+        Data::FunctionDecl { name, range, loc } => {
+            // Only handle named functions in the corresponding c file (not #include'd)
+            if loc.expansion_loc.is_none() || loc.expansion_loc.as_ref().unwrap().included_from.is_none() {
+                if let Some(name) = name {
+                    if let Err(error) = process_fun(name, range) {
+                        eprintln!("Error processing function in {}, {}:\n\t{}", in_src_path.display(), name, error);
+                    }
+                }
             }
+            DoRecurse(false)
         }
-    }
-    // Also print errors but don't stop processing, just skip
-    impl<'a> lang_c::visit::Visit<'a> for Visitor<'a> {
-        fn visit_function_definition(&mut self, function_definition: &'a lang_c::ast::FunctionDefinition, span: &'a lang_c::span::Span) {
-            if let Err(error) = self._visit_function_definition(function_definition, span) {
-                lang_c::visit::Visit::visit_function_definition(self.err_printer, function_definition, span);
-                eprintln!("Error processing function in {}:\n\t{}", self.in_src_path.display(), error);
-            }
-        }
-    }
+        Data::Other => DoRecurse(true)
+    });
 
-    // Run the visitor
-    lang_c::visit::Visit::visit_translation_unit(
-        &mut Visitor {
-            in_src_path,
-            in_obj_lines: &in_obj_lines,
-            out_dir,
-            err_printer: &mut lang_c::print::Printer::new(&mut IoWrite2FmtWrite::new(&mut stderr())),
-        },
-        &in_c.unit
-    );
-
-    // Cleanup: remove objdump assembly file
+    // Cleanup: remove objdump assembly file and clang --ast-dump source file
     std::fs::remove_file(&out_full_assembly_temp)?;
+    std::fs::remove_file(&out_c_ast_temp)?;
 
     Ok(())
 }
@@ -140,14 +129,29 @@ fn objdump(in_path: &Path, out_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+fn parse_via_clang_ast_dump(in_path: &Path, out_path: &Path) -> std::io::Result<()> {
+    let out_file = File::create(out_path)?;
+    let out_pipe = Stdio::from(out_file);
+
+    let status = Command::new("clang")
+        .arg("-Xclang")
+        .arg("-ast-dump=json")
+        .arg("-fsyntax-only")
+        .arg(in_path)
+        .stdout(out_pipe)
+        .status()?;
+    if !status.success() {
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "clang -ast-dump failed"));
+    }
+    Ok(())
+}
+
 lazy_static! {
     static ref ASM_FN_DEF_REGEX: Regex = Regex::new(r"^[0-9]+ <(.+)>:$").expect("internal error: bad regex format?");
 }
 
-fn _process_fun(in_obj_lines: &[&str], fn_name: &str, fn_def: &lang_c::ast::FunctionDefinition, fn_def_spam: &lang_c::span::Span, in_ir_file: &mut File, out_ir_file: &mut File) -> std::io::Result<()> {
-    let mut out_ir_file = IoWrite2FmtWriteCatch::new(out_ir_file);
-    let mut printer = lang_c::print::Printer::new(&mut out_ir_file);
-    lang_c::visit::Visit::visit_function_definition(&mut printer, fn_def, fn_def_spam);
+fn _process_fun(in_obj_lines: &[&str], fn_name: &str, fn_body: &str, in_ir_file: &mut File, out_ir_file: &mut File) -> std::io::Result<()> {
+    writeln!(out_ir_file, "{}", fn_body)?;
 
     let asm_lines = in_obj_lines.iter()
         // From "0000000000000230 <name>:"
@@ -158,5 +162,5 @@ fn _process_fun(in_obj_lines: &[&str], fn_name: &str, fn_def: &lang_c::ast::Func
         writeln!(in_ir_file, "{}", line)?;
     }
 
-    out_ir_file.into_result()
+    Ok(())
 }
