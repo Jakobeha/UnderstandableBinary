@@ -8,7 +8,7 @@ LABEL maintainer="Jakob Hain <jakobeha@gmail.com>"
 ADD deb-sources.list /etc/apt/sources.list
 # Add other files from host
 ADD install-packages.sh /install-packages.sh
-ADD scraper /scraper
+ADD preprocessor /preprocessor
 
 # Refresh package index
 RUN apt-get update --allow-unauthenticated && apt-get upgrade -y --allow-unauthenticated
@@ -28,11 +28,11 @@ RUN set -eux; \
     rm -f rustup-init; \
     chmod -R a+w "$RUSTUP_HOME" "$CARGO_HOME"
 
-# Build scraper
-RUN cd /scraper && cargo build
+# Build preprocessor
+RUN cd /preprocessor && cargo build
 
 # Install packages
 RUN ./install-packages.sh $N
 
-# Run scraper
-RUN cd /scraper && cargo run -- /sources /data
+# Run preprocessor
+RUN cd /preprocessor && cargo run -- /sources /data

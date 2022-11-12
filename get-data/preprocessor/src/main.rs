@@ -21,11 +21,11 @@ fn main() {
         // No need to follow symlinks
         .follow_links(false)
         .into_iter()
-        // Multi-threaded
-        .par_bridge()
+        // Multi-threaded (comment out for debugging, otherwise lldb loses connection)
+        // .par_bridge()
         // Should not have unreadable directories
         .map(|e| e.expect("Unreadable directory"))
-        .filter(|e| e.path().extension() == Some(OsStr::new("o")));
+        .filter(|e| e.path().extension() == Some(OsStr::new("o")) && e.path().with_extension("c").exists());
     iter.for_each(|e| process(e, &in_dir, &out_dir, &num_processed));
     println!("Processed {} sources!", num_processed.load(Ordering::Acquire));
 }
@@ -54,20 +54,13 @@ fn _process(in_src_path: &Path, in_obj_path: &Path, out_dir: &Path) -> std::io::
     std::fs::create_dir_all(out_dir)?;
 
     // Copy input without includes, and objdump assembly (before breaking up these files)
-    let in_full_src_temp = out_dir.join("full.c");
-    copy_without_includes(in_src_path, &in_full_src_temp)?;
     let out_full_assembly_temp = out_dir.join("full.s");
     objdump(in_obj_path, &out_full_assembly_temp)?;
 
     // Parse C code
     let config = lang_c::driver::Config::default();
-    let in_c = lang_c::driver::parse(&config, &in_full_src_temp)
-        .map_err(|error| {
-            if let Ok(code) = std::fs::read_to_string(&in_full_src_temp) {
-                eprintln!("Offending code: ===\n{}\n===", code);
-            }
-            std::io::Error::new(std::io::ErrorKind::Other, error)
-        })?;
+    let in_c = lang_c::driver::parse(&config, &in_src_path)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::Other, error))?;
 
     // Break assembly into lines, allocate vector to store them
     let in_obj_text = std::fs::read_to_string(in_obj_path)?;
@@ -125,21 +118,8 @@ fn _process(in_src_path: &Path, in_obj_path: &Path, out_dir: &Path) -> std::io::
         &in_c.unit
     );
 
-    // Cleanup: remove preprocessed full files
-    std::fs::remove_file(&in_full_src_temp)?;
+    // Cleanup: remove objdump assembly file
     std::fs::remove_file(&out_full_assembly_temp)?;
-
-    Ok(())
-}
-
-fn copy_without_includes(in_path: &Path, out_path: &Path) -> std::io::Result<()> {
-    let in_str = std::fs::read_to_string(in_path)?;
-    let mut out_file = File::create(out_path)?;
-
-    let in_lines = in_str.lines().filter(|line| !line.starts_with("#include"));
-    for line in in_lines {
-        writeln!(out_file, "{}", line)?;
-    }
 
     Ok(())
 }
