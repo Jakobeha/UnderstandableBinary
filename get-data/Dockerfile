@@ -1,6 +1,6 @@
 # This image simply downloads and installs a bunch of packages (n packages) with source.
 # We can later extract the source and compiled binaries
-ARG N=10
+ARG N=100
 
 FROM debian:stable-slim
 LABEL maintainer="Jakob Hain <jakobeha@gmail.com>"
@@ -35,4 +35,5 @@ RUN cd /preprocessor && cargo build
 RUN ./install-packages.sh $N
 
 # Run preprocessor
+RUN apt-get install clang -y --allow-unauthenticated
 RUN cd /preprocessor && cargo run -- /sources /data
