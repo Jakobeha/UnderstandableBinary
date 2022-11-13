@@ -7,7 +7,8 @@ import torch
 from transformers import TrainingArguments, Trainer
 
 from python.code_type import CODE_TYPES
-from python.model import get_model, ModelData, ModelDataset, get_tokenizer
+from python.dataset import ModelData, ModelDataset
+from python.model import get_model, get_tokenizer
 from utils import check_dir, mk_empty_dir
 
 

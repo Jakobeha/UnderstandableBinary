@@ -11,6 +11,8 @@
     - `python/train.py`
     - `python/transform_ir.py`
     - `python/transform.py`
-- `python/model.py`: Model data for `train` and `transform_ir`
+- Model helpers
+  - `python/model.py`: General ML functions
+  - `python/dataset.py`: Dataset classes 
 - `python/log.py`: Logging
 - `python/utils.py`: Utility functions and constants

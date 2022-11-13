@@ -141,8 +141,7 @@ def main():
     )
     train_parser.add_argument(
         "--resume",
-        action="store_false",
-        default=True,
+        action="store_true",
         help="resume training from the last checkpoint"
     )
     train_parser.set_defaults(func=train_cmd)
