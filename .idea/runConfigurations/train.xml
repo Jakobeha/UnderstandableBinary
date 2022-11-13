@@ -5,6 +5,7 @@
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
+      <env name="TOKENIZERS_PARALLELISM" value="true" />
     </envs>
     <option name="SDK_HOME" value="$USER_HOME$/Library/Caches/pypoetry/virtualenvs/python-wrRLqxSR-py3.10/bin/python" />
     <option name="WORKING_DIRECTORY" value="" />

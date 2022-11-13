@@ -4,7 +4,7 @@ from typing import Optional
 from transformers import AutoTokenizer, T5ForConditionalGeneration
 from pathlib import Path
 
-USE_SMALL = True
+USE_SMALL = False
 
 
 def get_pretrained_id() -> str:
@@ -23,7 +23,7 @@ def get_tokenizer():
 
 
 def tokenize(tokenizer, data):
-    return tokenizer(data, truncation=False, padding="longest", return_tensors="pt")
+    return tokenizer(data, truncation=True, padding="longest", return_tensors="pt")
 
 
 def tokenize_encode(tokenizer, code):
