@@ -2,9 +2,9 @@ from pathlib import Path
 
 from tokenizers import Tokenizer
 
-from python.code_type import CodeType
-from python.transform_gen import gen_transform
-from python.transform_ir import transform_ir_code
+from code_type import CodeType
+from transform_gen import gen_transform
+from transform_ir import transform_ir_code
 
 
 def transform_code(tokenizer: Tokenizer, code_type: CodeType, model, src_suffix: str, code: str) -> str:

@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from python.code_type import CodeType
-from python.log import log
-from python.model import tokenize
+from code_type import CodeType
+from log import log
+from model import tokenize
 from tokenizers import Tokenizer
 
 import torch

@@ -6,9 +6,9 @@ import numpy as np
 import torch
 from transformers import TrainingArguments, Trainer
 
-from python.code_type import CODE_TYPES
-from python.dataset import ModelData, ModelDataset
-from python.model import get_model, get_tokenizer
+from code_type import CODE_TYPES
+from dataset import ModelData, ModelDataset
+from model import get_model, get_tokenizer
 from utils import check_dir, mk_empty_dir
 
 
@@ -29,7 +29,8 @@ def train(
     tokenizer = get_tokenizer()
     model = get_model(model_dir)
     train_dataset, eval_dataset = get_datasets(tokenizer, dataset_dir, eval_path_or_ratio, lang, count)
-    metric = evaluate.load("accuracy")
+    do_eval = eval_dataset is not None
+    metric = evaluate.load("accuracy") if do_eval else None
 
     def compute_metrics(eval_pred):
         logits, labels = eval_pred
@@ -48,7 +49,7 @@ def train(
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        compute_metrics=compute_metrics if not (eval_dataset is None) else None,
+        compute_metrics=compute_metrics if do_eval else None,
     )
 
     gc.collect()

@@ -4,10 +4,10 @@ from typing import Callable, Any
 
 from tokenizers import Tokenizer
 
-from python.code_type import CodeType, CODE_TYPES
-from python.log import log
-from python.model import get_tokenizer, get_model
-from python.utils import check_dir, mk_empty_dir
+from code_type import CodeType, CODE_TYPES
+from log import log
+from model import get_tokenizer, get_model
+from utils import check_dir, mk_empty_dir
 
 
 def gen_transform_dir(

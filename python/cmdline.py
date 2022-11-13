@@ -4,7 +4,7 @@ from generate import generate
 from train import train
 from transform_ir import transform_ir
 from transform import transform
-from python.utils import PROJECT_PATH, INT32_MAX, path_or_float
+from utils import PROJECT_PATH, INT32_MAX, path_or_float
 
 
 def download_cmd(args):

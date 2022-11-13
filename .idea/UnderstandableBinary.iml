@@ -8,6 +8,7 @@
       <excludeFolder url="file://$MODULE_DIR$/local" />
       <excludeFolder url="file://$MODULE_DIR$/get-data/scraper/target" />
       <excludeFolder url="file://$MODULE_DIR$/preprocessor/target" />
+      <excludeFolder url="file://$MODULE_DIR$/get-data/preprocessor/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
