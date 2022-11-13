@@ -40,8 +40,9 @@ def train(
     training_args = TrainingArguments(
         output_dir=str(model_dir),
         per_device_train_batch_size=1,
-        per_device_eval_batch_size=1,
-        evaluation_strategy="epoch"
+        per_device_eval_batch_size=1 if do_eval else None,
+        evaluation_strategy="epoch" if do_eval else "no",
+        do_eval=do_eval
     )
 
     trainer = Trainer(
