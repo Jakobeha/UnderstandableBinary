@@ -8,7 +8,7 @@ LABEL maintainer="Jakob Hain <jakobeha@gmail.com>"
 ADD deb-sources.list /etc/apt/sources.list
 # Add other files from host
 ADD install-packages.sh /install-packages.sh
-ADD preprocessor /preprocessor
+ADD ../preprocessor /preprocessor
 
 # Refresh package index
 RUN apt-get update --allow-unauthenticated && apt-get upgrade -y --allow-unauthenticated

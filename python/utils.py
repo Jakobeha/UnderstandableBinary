@@ -4,6 +4,16 @@ import shutil
 
 PROJECT_PATH = Path(__file__).parent.parent
 
+INT32_MAX = 2_147_483_647  # 2^31 - 1
+
+
+def path_or_float(arg) -> Path | float:
+    """ArgumentParser type for a path or a float"""
+    try:
+        return float(arg)
+    except ValueError:
+        return Path(arg)
+
 
 def check_dir(path: Path):
     """assert that the path exists and is a directory"""

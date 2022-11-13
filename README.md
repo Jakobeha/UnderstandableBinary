@@ -13,9 +13,9 @@ This is a project to use machine learning to analyze and disassemble binary file
 The root project is a python package which uses [poetry](https://python-poetry.org/) for dependency management, however there may be sub-packages in Rust or other languages. The python scripts are mainly wrappers which handle simple tasks, the sub-packages and HuggingFace libraries do the heavy lifting
 
 - `python/*`: Python scripts
-  - `python/cmdline.py`: Command line interface
-  - `python/data.py`: Dataset functions
-  - `python/log.py`: Logging
-- `local/`: Local directory you can store downloaded / trained models which is not committed
+- `get-data`: Dockerfile / generator which downloads APT repositories and runs the preprocessor to generate training examples
+- `preprocessor`: Rust project which converts source code and assembly into input and output IR 
+  - Dissassembles the object files and divides the source and object into smaller sections which are the examples; converts the assembly into input IR and source into output IR
+- `local/`: Local directory where you can store downloaded / trained models which is not committed
 
 TODO: add more
