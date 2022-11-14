@@ -27,15 +27,15 @@ def tokenize(tokenizer, data):
 
 
 def tokenize_encode(tokenizer, code):
-    return tokenizer.encode(code, truncation=False, padding="longest", return_tensors="pt")
+    return tokenizer.encode(code, truncation=True, padding="longest", return_tensors="pt")
 
 
 def tokenize_decode(tokenizer, code):
-    return tokenizer.decode(code, max_new_tokens=512, skip_special_tokens=True)
+    return tokenizer.decode(code, skip_special_tokens=True)
 
 
 def get_real_model_dir(model_dir: Path) -> Path:
-    checkpoint_paths = [checkpoint_path for checkpoint_path in model_dir.glob("checkpoint_path*")]
+    checkpoint_paths = [checkpoint_path for checkpoint_path in model_dir.glob("checkpoint*")]
     if len(checkpoint_paths) == 0:
         return model_dir
     else:

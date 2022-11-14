@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/python/cmdline.py" />
-    <option name="PARAMETERS" value="transform -i $ProjectFileDir$/local/transform-input $ProjectfileDir$/local/transform-output" />
+    <option name="PARAMETERS" value="transform -i $ProjectFileDir$/local/transform-input -o $ProjectFileDir$/local/transform-output -f" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

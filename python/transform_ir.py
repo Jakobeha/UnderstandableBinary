@@ -9,7 +9,7 @@ from transform_gen import gen_transform
 
 def transform_ir_code(tokenizer: Tokenizer, _code_type: CodeType, model, _src_suffix: str, code: str) -> str:
     input_ids = tokenize_encode(tokenizer, code)
-    outputs = model.generate(input_ids)
+    outputs = model.generate(input_ids, max_new_tokens=512)
     return tokenize_decode(tokenizer, outputs[0])
 
 

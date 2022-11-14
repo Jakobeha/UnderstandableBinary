@@ -49,18 +49,18 @@ def gen_transform_dir(
             shutil.copy(src, dest)
 
     # noinspection PyShadowingNames
-    def transform_sub_dir(src: Path, dest: Path):
+    def transform_sub_dir(src: Path, dest: Path, exist_ok: bool):
         if src.is_dir():
             if src_root != src:
                 log.debug(f"Transforming sub-directory {str(src)}")
 
-            dest.mkdir()
+            dest.mkdir(exist_ok=exist_ok)
             for child in src.iterdir():
-                transform_sub_dir(child, dest.joinpath(child.name))
+                transform_sub_dir(child, dest.joinpath(child.name), False)
         else:
             transform_file(src, dest)
 
-    transform_sub_dir(src_root, dest)
+    transform_sub_dir(src_root, dest, True)
 
 
 def gen_transform(
