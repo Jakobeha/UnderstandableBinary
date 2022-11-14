@@ -7,7 +7,13 @@ from model import tokenize_encode, tokenize_decode
 from transform_gen import gen_transform
 
 
-def transform_ir_code(tokenizer: Tokenizer, _code_type: CodeType, model, _src_suffix: str, code: str) -> str:
+def transform_raw_ir_code(tokenizer: Tokenizer, _code_type: CodeType, model, src: Path) -> str:
+    with src.open(encoding="utf8") as src:
+        code = src.read()
+    return transform_ir_code(tokenizer, model, code)
+
+
+def transform_ir_code(tokenizer: Tokenizer, model, code: str) -> str:
     input_ids = tokenize_encode(tokenizer, code)
     outputs = model.generate(input_ids, max_new_tokens=512)
     return tokenize_decode(tokenizer, outputs[0])
@@ -20,4 +26,4 @@ def transform_ir(
         lang: str,
         count: int,
         force: bool):
-    gen_transform(transform_ir_code, indir, outdir, model_dir, lang, count, force)
+    gen_transform(transform_raw_ir_code, indir, outdir, model_dir, lang, count, force)

@@ -5,8 +5,8 @@ class CodeType:
         self.alt_bytecode_extension = alt_bytecode_extension
 
 
-CodeType.C = CodeType(".c", ".s", ".o")
+CODE_TYPE_C = CodeType(".c", ".s", ".o")
 
 CODE_TYPES = {
-    "c": CodeType.C
+    "c": CODE_TYPE_C
 }

@@ -11,7 +11,7 @@ from utils import check_dir, mk_empty_dir
 
 
 def gen_transform_dir(
-        do_transform: Callable[[Tokenizer, CodeType, Any, str, str], str],
+        do_transform: Callable[[Tokenizer, CodeType, Any, Path], str],
         tokenizer: Tokenizer,
         code_type: CodeType,
         model: Any,
@@ -29,13 +29,10 @@ def gen_transform_dir(
         
         log.info(f"Transforming file {str(src)}")
 
-        src_suffix = src.suffix
-        with src.open(encoding="utf8") as src:
-            with dest.open("w", encoding="utf8") as dest:
-                code = src.read()
-                transformed_code = do_transform(tokenizer, code_type, model, src_suffix, code)
-                dest.write(transformed_code)
-                num_transformed[0] += 1
+        with dest.open("w", encoding="utf8") as dest:
+            transformed_code = do_transform(tokenizer, code_type, model, src)
+            dest.write(transformed_code)
+            num_transformed[0] += 1
 
     # noinspection PyShadowingNames
     def transform_file(src: Path, dest: Path):
@@ -64,7 +61,7 @@ def gen_transform_dir(
 
 
 def gen_transform(
-        do_transform: Callable[[Tokenizer, CodeType, Any, str, str], str],
+        do_transform: Callable[[Tokenizer, CodeType, Any, Path], str],
         indir: Path,
         outdir: Path,
         model_dir: Path,
