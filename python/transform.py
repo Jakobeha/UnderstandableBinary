@@ -26,8 +26,15 @@ def transform_code(tokenizer: Tokenizer, code_type: CodeType, model, src: Path) 
             case src_suffix:
                 raise ValueError(f"Unknown suffix {src_suffix}")
         blocks = code.split("\n\n")
+        if len(blocks) > 1:
+            blocks = blocks[1:]
         #
-        return "\n\n".join(transform_ir_code(tokenizer, model, block) for block in blocks)
+        return "\n\n".join(
+            transform_ir_code(tokenizer, model, block)
+            for block in blocks
+            if not block.startswith("Disassembly")
+            and len(block.strip()) > 0
+        )
     else:
         raise ValueError(f"Unsupported code type: {code_type}")
 
