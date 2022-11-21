@@ -53,11 +53,11 @@ def gen_transform_dir(
 
             dest.mkdir(exist_ok=exist_ok)
             for child in src.iterdir():
-                transform_sub_dir(child, dest.joinpath(child.name), False)
+                transform_sub_dir(child, dest.joinpath(child.name), exist_ok=False)
         else:
             transform_file(src, dest)
 
-    transform_sub_dir(src_root, dest, True)
+    transform_sub_dir(src_root, dest, exist_ok=True)
 
 
 def gen_transform(
