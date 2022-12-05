@@ -29,13 +29,15 @@ class ModelData:
                 for child_path in path.rglob("*"):
                     _add_item(child_path)
             elif path.suffix == self.code_type.source_extension:
-                bytecode_path = path.with_suffix(self.code_type.bytecode_extension)
-                if bytecode_path.exists():
-                    try:
-                        self.add_example(path, bytecode_path)
-                        log.info(f"Added {str(path)}")
-                    except Exception as e:
-                        log.error(f"Failed to add {str(path)}: {e}")
+                bytecode_paths = (path.with_suffix(bytecode_extension) for bytecode_extension in self.code_type.bytecode_extensions)
+                for bytecode_path in bytecode_paths:
+                    if bytecode_path.exists():
+                        try:
+                            self.add_example(path, bytecode_path)
+                            log.info(f"Added {str(path)}")
+                        except Exception as e:
+                            log.error(f"Failed to add {str(path)}: {e}")
+                        break
                 else:
                     log.warning(f"In-IR file {str(path)} exists but its corresponding out-IR does not")
             else:
