@@ -28,7 +28,8 @@ class ModelData:
             if path.is_dir():
                 for child_path in path.rglob("*"):
                     _add_item(child_path)
-            elif path.suffix == self.code_type.source_extension:
+            elif path.suffix == self.code_type.source_extension and \
+                    not any(path.suffix == bytecode_extension for bytecode_extension in self.code_type.bytecode_extensions):
                 bytecode_paths = (path.with_suffix(bytecode_extension) for bytecode_extension in self.code_type.bytecode_extensions)
                 for bytecode_path in bytecode_paths:
                     if bytecode_path.exists():
@@ -63,7 +64,6 @@ class ModelData:
         self.max_len = max_len
         self.paths = []
         self.sources = []
-        self.bytecodes = []
         self.bytecodes = []
 
 
