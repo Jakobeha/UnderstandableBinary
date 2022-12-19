@@ -36,8 +36,14 @@ def gen_transform_dir(
 
     # noinspection PyShadowingNames
     def transform_file(src: Path, dest: Path):
-        if any(src.name.endswith(bytecode_extension) for bytecode_extension in code_type.bytecode_extensions):
-            transform_code_file(src, dest.with_suffix(code_type.source_extension))
+        dest_name = next((
+            src.name[:-len(bytecode_extension)] + code_type.source_extension
+            for bytecode_extension
+            in code_type.bytecode_extensions
+            if src.name.endswith(bytecode_extension)
+        ), None)
+        if dest_name is not None:
+            transform_code_file(src, dest.with_name(dest_name))
         else:
             log.debug(f"Copying non-code file {str(src)}")
 

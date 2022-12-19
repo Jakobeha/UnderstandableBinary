@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+import re
 
 from tokenizers import Tokenizer
 
@@ -23,6 +24,16 @@ def transform_code(tokenizer: Tokenizer, code_type: CodeType, model, src: Path) 
             case ".s":
                 with src.open(encoding="utf8") as src:
                     code = src.read()
+            case ".c":
+                # TODO: Separate by decl, right now just assumes declarations are code at base level
+                with src.open(encoding="utf8") as src:
+                    code = src.read()
+                    while True:
+                        new_code = code.replace("\n\n", "\n")
+                        if new_code == code:
+                            break
+                        code = new_code
+                    code = re.sub("^[^ {#/]", "\n\n\\0", code, flags=re.MULTILINE)
             case src_suffix:
                 raise ValueError(f"Unknown suffix {src_suffix}")
         blocks = code.split("\n\n")
