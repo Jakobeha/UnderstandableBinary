@@ -9,8 +9,10 @@
       <excludeFolder url="file://$MODULE_DIR$/get-data/scraper/target" />
       <excludeFolder url="file://$MODULE_DIR$/preprocessor/target" />
       <excludeFolder url="file://$MODULE_DIR$/get-data/preprocessor/target" />
+      <excludeFolder url="file://$MODULE_DIR$/ghidra/latest_release" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="Ghidra" level="application" />
   </component>
 </module>

@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/UnderstandableBinary.iml" filepath="$PROJECT_DIR$/.idea/UnderstandableBinary.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ghidra/ghidra.iml" filepath="$PROJECT_DIR$/ghidra/ghidra.iml" />
     </modules>
   </component>
 </project>
