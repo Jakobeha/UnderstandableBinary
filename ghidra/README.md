@@ -1,8 +1,13 @@
 # UnderstandableBinary ghidra distribution and scripts
 
+Setup requirements:
+
+- Linux: nothing
+- macOS: nothing, but you must allow some unsigned code and rerun due to SIP (see [https://support.apple.com/en-us/HT202491](https://support.apple.com/en-us/HT202491) section "If you want to open an app that hasn’t been notarized or is from an unidentified developer")
+- Windows: Doesn't work
+
 How to use:
-- Unzip `latest_release.tar.gz` (TODO automate this when necessary, we compress to reduce Git file count and size)
-- Run the shell script `disassemble [<folder with object files>] [<timeout>] [<process existing>]`
+- Run the shell script `disassemble.sh [args]` (see `disassemble.sh -h` for help)
 
 More info:
 
