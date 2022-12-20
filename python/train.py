@@ -64,14 +64,14 @@ def get_datasets(
         dataset_dir: Path,
         eval_path_or_ratio:
         Path | float,
-        lang: str,
+        langs: str,
         count: int) -> tuple[ModelDataset, ModelDataset | None]:
-    code_type = CODE_TYPES[lang]
-    train_data = ModelData(code_type, count)
+    code_types = [CODE_TYPES[lang] for lang in langs.split(",")]
+    train_data = ModelData(code_types, count)
     train_data.add_dir(dataset_dir)
     eval_data: ModelData | None
     if isinstance(eval_path_or_ratio, Path):
-        eval_data = ModelData(code_type, count)
+        eval_data = ModelData(code_types, count)
         eval_data.add_dir(eval_path_or_ratio)
     elif eval_path_or_ratio != 0:
         eval_data = train_data.split_off_end(eval_path_or_ratio)

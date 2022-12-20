@@ -1,6 +1,8 @@
 from pathlib import Path
 import shutil
+from typing import Iterable, Tuple, TypeVar
 
+T = TypeVar('T')
 
 PROJECT_PATH = Path(__file__).parent.parent
 
@@ -31,3 +33,13 @@ def mk_empty_dir(path: Path, force: bool):
         else:
             raise ValueError(f"Path {path} already exists")
     path.mkdir(parents=True)
+
+
+def chunk2(iterable: Iterable[T]) -> Iterable[Tuple[T, T]]:
+    """Chunk an iterable into pairs"""
+    it = iter(iterable)
+    while True:
+        try:
+            yield next(it), next(it)
+        except StopIteration:
+            return

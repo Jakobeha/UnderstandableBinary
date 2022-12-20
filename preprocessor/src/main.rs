@@ -36,7 +36,7 @@ fn main() {
         .par_bridge()
         // Should not have unreadable directories
         .map(|e| e.expect("Unreadable directory"))
-        .filter(|e| e.path().extension() == Some(OsStr::new("o")) && e.path().with_extension("c").exists());
+        .filter(|e| e.path().extension() == Some(OsStr::new("o")) && (e.path().with_extension("c").exists() || e.path().with_extension("cpp").exists() || e.path().with_extension("c++").exists()));
     iter.for_each(|e| process(e, &in_dir, &out_dir, &num_processed_sources, &num_processed_functions));
     println!(
         "Processed {} sources and {} functions!",

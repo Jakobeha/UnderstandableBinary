@@ -23,7 +23,7 @@ def transform_ir(
         indir: Path,
         outdir: Path,
         model_dir: Path,
-        lang: str,
+        langs: str,
         count: int,
         force: bool):
-    gen_transform(transform_raw_ir_code, indir, outdir, model_dir, lang, count, force)
+    gen_transform(transform_raw_ir_code, indir, outdir, model_dir, langs, count, force)

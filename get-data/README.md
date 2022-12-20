@@ -4,7 +4,7 @@ Get source and compiled assembly data from an open-source repository (Debian), t
 
 ## Files
 
-`run.sh` to generate the training examples, all other files are implementation
+`run.sh <number of packages>` to generate the training examples, all other files are implementation
 
 - `Dockerfile`: Generates a docker image where we can copy out `/data`, which is source/object pairs to pass to `../preprocessor`
 - `deb-sources.list`: Repositories to get debian packages and package sources

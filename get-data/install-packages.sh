@@ -16,14 +16,15 @@ echo "*** INSTALLING PACKAGES"
 recurse () {
   # Even though we do apt-get build-deps -y, we still need yes command because some packages (apt-get-ng, jack2, etc) ask for extra confirmations and will block otherwise
   # shellcheck disable=SC2046
-  if yes | apt-get build-dep -yf --allow-unauthenticated $(cat packages.txt | cut -d' ' -f1 | tr '\n' ' ') 2>errors.txt ; then
+  if yes | apt-get build-dep -yf --allow-unauthenticated $(cat packages.txt | cut -d' ' -f1 | tr '\n' ' ') 2>errors.txt | tee log.txt ; then
       echo "*** INSTALLED PACKAGES"
-  elif grep -q "The following packages have unmet dependencies:" packages.txt ; then
+  elif grep -q "The following packages have unmet dependencies:" log.txt ; then
       echo "*** REMOVING CONFLICTING PACKAGES..."
       # Get the packages causing conflicts
-      cat errors.txt | sed "s/.*The following packages have unmet dependencies://" | sed 's/^[ \t]*//;s/[ \t]*$//' | cut -d' ' -f1 | sort | uniq > errors.txt
+      cat log.txt | sed "s/.*The following packages have unmet dependencies://" | sed 's/^[ \t]*//;s/[ \t]*$//' | cut -d' ' -f1 | sort | uniq > log.txt
       # Remove them from the list of packages to install
-      grep -vxf errors.txt packages.txt > packages.txt
+      grep -vxf log.txt packages.txt > packages2.txt; mv packages2.txt packages.txt
+      rm log.txt
       rm errors.txt
       # Retry
       recurse

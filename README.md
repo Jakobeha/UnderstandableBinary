@@ -4,6 +4,10 @@
 
 This is a project to use machine learning to analyze and disassemble binary files. It is a work in progress. TODO
 
+## How to install
+
+Install [Git LFS](https://git-lfs.com/) if not already, then `git clone ...`
+
 ## How to use
 
 `./run.sh`

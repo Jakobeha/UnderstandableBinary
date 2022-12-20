@@ -1,60 +1,22 @@
 from pathlib import Path
-import subprocess
-import re
-
 from tokenizers import Tokenizer
 
-from code_type import CodeType, CODE_TYPE_C
+from code_type import CodeType
 from transform_gen import gen_transform
 from transform_ir import transform_ir_code
 
 
-def transform_code(tokenizer: Tokenizer, code_type: CodeType, model, src: Path) -> str:
-    if code_type == CODE_TYPE_C:
-        # TODO: Do this in Rust, reusing the preprocessor:
-        #   Copy the code into a temporary directory with the files properly disassembled, and then run directly on the
-        #   IR (might get rid of gen_transform as well)
-        match src.suffix:
-            case ".o":
-                code = subprocess.run(
-                    ["objdump", "-drwC", "-Mintel", str(src)],
-                    stdout=subprocess.PIPE,
-                    check=True
-                ).stdout.decode("utf8")
-            case ".s":
-                with src.open(encoding="utf8") as src:
-                    code = src.read()
-            case ".c":
-                # TODO: Separate by decl, right now just assumes declarations are code at base level
-                with src.open(encoding="utf8") as src:
-                    code = src.read()
-                    while True:
-                        new_code = code.replace("\n\n", "\n")
-                        if new_code == code:
-                            break
-                        code = new_code
-                    code = re.sub("^[^ {#/]", "\n\n\\0", code, flags=re.MULTILINE)
-            case src_suffix:
-                raise ValueError(f"Unknown suffix {src_suffix}")
-        blocks = code.split("\n\n")
-        if len(blocks) > 1:
-            blocks = blocks[1:]
-        #
-        return "\n\n".join(
-            transform_ir_code(tokenizer, model, block)
-            for block in blocks
-            if not block.startswith("Disassembly")
-            and len(block.strip()) > 0
-        )
-    else:
-        raise ValueError(f"Unsupported code type: {code_type}")
+def transform_code(tokenizer: Tokenizer, code_type: CodeType, model, src: Path) -> str | bytes:
+    model_inputs = code_type.process_input(src)
+    model_outputs = (transform_ir_code(tokenizer, model, model_input) for model_input in model_inputs)
+    return code_type.process_output(model_outputs)
 
 
 def transform(
         indir: Path,
         outdir: Path,
         model_dir: Path,
-        lang: str,
+        langs: str,
         count: int,
         force: bool):
-    gen_transform(transform_code, indir, outdir, model_dir, lang, count, force)
+    gen_transform(transform_code, indir, outdir, model_dir, langs, count, force)

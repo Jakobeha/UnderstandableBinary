@@ -8,23 +8,23 @@ from utils import PROJECT_PATH, INT32_MAX, path_or_float
 
 
 def download_cmd(args):
-    download(args.o, args.t, args.n, args.f)
+    download(args.o, args.l, args.n, args.f)
 
 
 def generate_cmd(args):
-    generate(args.i, args.o, args.t, args.n, args.f)
+    generate(args.i, args.o, args.l, args.n, args.f)
 
 
 def train_cmd(args):
-    train(args.i, args.eval, args.o, args.t, args.n, args.f, args.resume)
+    train(args.i, args.eval, args.o, args.l, args.n, args.f, args.resume)
 
 
 def transform_ir_cmd(args):
-    transform_ir(args.i, args.o, args.m, args.t, args.n, args.f)
+    transform_ir(args.i, args.o, args.m, args.l, args.n, args.f)
 
 
 def transform_cmd(args):
-    transform(args.i, args.o, args.m, args.t, args.n, args.f)
+    transform(args.i, args.o, args.m, args.l, args.n, args.f)
 
 
 def main():
@@ -49,9 +49,9 @@ def main():
         action="store_true"
     )
     download_parser.add_argument(
-        "-t",
+        "-l",
         type=str,
-        help="code type",
+        help="languages (separated by commas, default = all)",
         default="c"
     )
     download_parser.add_argument(
@@ -85,9 +85,9 @@ def main():
         action="store_true"
     )
     generate_parser.add_argument(
-        "-t",
+        "-l",
         type=str,
-        help="code type",
+        help="languages (separated by commas, default = all)",
         default="c"
     )
     generate_parser.add_argument(
@@ -128,9 +128,9 @@ def main():
         action="store_true"
     )
     train_parser.add_argument(
-        "-t",
+        "-l",
         type=str,
-        help="code type",
+        help="languages (separated by commas, default = all)",
         default="c"
     )
     train_parser.add_argument(
@@ -175,9 +175,9 @@ def main():
         default=PROJECT_PATH / "local/model"
     )
     transform_ir_parser.add_argument(
-        "-t",
+        "-l",
         type=str,
-        help="code type",
+        help="languages (separated by commas, default = all)",
         default="c"
     )
     transform_ir_parser.add_argument(
@@ -216,9 +216,9 @@ def main():
         default=PROJECT_PATH / "local/model"
     )
     transform_parser.add_argument(
-        "-t",
+        "-l",
         type=str,
-        help="code type",
+        help="languages (separated by commas, default = all)",
         default="c"
     )
     transform_parser.add_argument(
