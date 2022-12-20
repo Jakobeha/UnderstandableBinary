@@ -1,11 +1,11 @@
 # get-data
 
-Get source and compiled assembly data from an open-source repository (Debian), then runs `../preprocessor` to convert to input/output IR to ultimately generate UnderstandableBinary training examples
+Build `N` packages from an open-source repository (Debian) to get code for training an ML model.
 
 ## Files
 
-`run.sh <number of packages>` to generate the training examples, all other files are implementation
+`run.sh <number of packages> [<install dir>]` to build the packages and get the code
 
-- `Dockerfile`: Generates a docker image where we can copy out `/data`, which is source/object pairs to pass to `../preprocessor`
-- `deb-sources.list`: Repositories to get debian packages and package sources
+- `Dockerfile`: Generates a docker image to build packages (doesn't build packages, because if the build fails we can't restart, but has `install-packages.sh` which is the script to do so)
 - `install-packages.sh`: Installs dependencies of, downloads source, and builds the first `n` packages. Run while generating the docker image
+- `deb-sources.list`: Repositories to get debian packages and package sources
