@@ -5,7 +5,8 @@ from typing import Callable, Any
 
 from tokenizers import Tokenizer
 
-from code_type import CodeType, CODE_TYPES
+from code_type import CodeType
+from code_types import CODE_TYPES
 from log import log
 from model import get_tokenizer, get_model
 from utils import check_dir, mk_empty_dir

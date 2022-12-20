@@ -21,6 +21,8 @@ torch-utils = "^0.1.2"
 sklearn = "^0.0.post1"
 tqdm = "^4.64.1"
 docker = "^6.0.1"
+libclang = "^14.0.6"
+clang = "^14.0"
 
 [build-system]
 requires = ["poetry-core"]

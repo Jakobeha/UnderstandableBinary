@@ -6,11 +6,21 @@ This is a project to use machine learning to analyze and disassemble binary file
 
 ## How to install
 
-Install [Git LFS](https://git-lfs.com/) if not already, then `git clone ...`
+Install dependencies:
+
+- [Git LFS](https://git-lfs.com/)
+- [clang 14.0.6](https://releases.llvm.org/download.html)
+
+```shell
+> git clone git@github.com:Jakobeha/UnderstandableBinary.git
+```
 
 ## How to use
 
-`./run.sh`
+```shell
+> cd UnderstandableBinary
+> run.sh [options]...
+```
 
 ## Project layout
 

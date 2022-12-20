@@ -71,6 +71,14 @@ python-versions = ">=3.6.0"
 unicode-backport = ["unicodedata2"]
 
 [[package]]
+name = "clang"
+version = "14.0"
+description = "libclang python bindings"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -269,6 +277,14 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
+name = "libclang"
+version = "14.0.6"
+description = "Clang Python Bindings, mirrored from the official LLVM repo: https://github.com/llvm/llvm-project/tree/main/clang/bindings/python, to make the installation process easier."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "multidict"
 version = "6.0.3"
 description = "multidict implementation"
@@ -452,6 +468,7 @@ opt-einsum = ["opt-einsum (>=3.3)"]
 [package.source]
 type = "url"
 url = "https://download.pytorch.org/whl/cpu/torch-1.13.0-cp310-none-macosx_11_0_arm64.whl"
+
 [[package]]
 name = "torch-utils"
 version = "0.1.2"
@@ -599,7 +616,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10,<3.11"
-content-hash = "c6c0cfca89678fd016a73cb38e7dafaedc25e57de5e8c07a42c80489f3f63440"
+content-hash = "a3403cd005dfaa369b05839584e1c38f044ad1bc5dc8c41fde7e4e001b868464"
 
 [metadata.files]
 aiohttp = [
@@ -710,6 +727,10 @@ certifi = [
 charset-normalizer = [
     {file = "charset-normalizer-2.1.1.tar.gz", hash = "sha256:5a3d016c7c547f69d6f81fb0db9449ce888b418b5b9952cc5e6e66843e9dd845"},
     {file = "charset_normalizer-2.1.1-py3-none-any.whl", hash = "sha256:83e9a75d1911279afd89352c68b45348559d1fc0506b054b346651b5e7fee29f"},
+]
+clang = [
+    {file = "clang-14.0-py3-none-any.whl", hash = "sha256:049c7f7740f46f733fc96b5395910ffc57f56d4d61bca65b5556e9772d146deb"},
+    {file = "clang-14.0.tar.gz", hash = "sha256:0fe241386d3b780666e032d8c2e482b1d434880185c685071aa38b78317e969f"},
 ]
 colorama = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
@@ -822,6 +843,18 @@ huggingface-hub = [
 idna = [
     {file = "idna-3.4-py3-none-any.whl", hash = "sha256:90b77e79eaa3eba6de819a0c442c0b4ceefc341a7a2ab77d7562bf49f425c5c2"},
     {file = "idna-3.4.tar.gz", hash = "sha256:814f528e8dead7d329833b91c5faa87d60bf71824cd12a7530b5526063d02cb4"},
+]
+libclang = [
+    {file = "libclang-14.0.6-py2.py3-none-macosx_10_9_x86_64.whl", hash = "sha256:8791cf3c3b087c373a6d61e9199da7a541da922c9ddcfed1122090586b996d6e"},
+    {file = "libclang-14.0.6-py2.py3-none-macosx_11_0_arm64.whl", hash = "sha256:7b06fc76bd1e67c8b04b5719bf2ac5d6a323b289b245dfa9e468561d99538188"},
+    {file = "libclang-14.0.6-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:e429853939423f276a25140b0b702442d7da9a09e001c05e48df888336947614"},
+    {file = "libclang-14.0.6-py2.py3-none-manylinux2010_x86_64.whl", hash = "sha256:206d2789e4450a37d054e63b70451a6fc1873466397443fa13de2b3d4adb2796"},
+    {file = "libclang-14.0.6-py2.py3-none-manylinux2014_aarch64.whl", hash = "sha256:e2add1703129b2abe066fb1890afa880870a89fd6ab4ec5d2a7a8dc8d271677e"},
+    {file = "libclang-14.0.6-py2.py3-none-manylinux2014_armv7l.whl", hash = "sha256:5dd3c6fca1b007d308a4114afa8e4e9d32f32b2572520701d45fcc626ac5cd6c"},
+    {file = "libclang-14.0.6-py2.py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:cfb0e892ebb5dff6bd498ab5778adb8581f26a00fd8347b3c76c989fe2fd04f7"},
+    {file = "libclang-14.0.6-py2.py3-none-win_amd64.whl", hash = "sha256:ea03c12675151837660cdd5dce65bd89320896ac3421efef43a36678f113ce95"},
+    {file = "libclang-14.0.6-py2.py3-none-win_arm64.whl", hash = "sha256:2e4303e04517fcd11173cb2e51a7070eed71e16ef45d4e26a82c5e881cac3d27"},
+    {file = "libclang-14.0.6.tar.gz", hash = "sha256:9052a8284d8846984f6fa826b1d7460a66d3b23a486d782633b42b6e3b418789"},
 ]
 multidict = [
     {file = "multidict-6.0.3-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:73009ea04205966d47e16d98686ac5c438af23a1bb30b48a2c5da3423ec9ce37"},

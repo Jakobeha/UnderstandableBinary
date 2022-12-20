@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from transformers import TrainingArguments, Trainer
 
-from code_type import CODE_TYPES
+from code_types import CODE_TYPES
 from dataset import ModelData, ModelDataset
 from model import get_model, get_tokenizer
 from utils import check_dir, mk_empty_dir
