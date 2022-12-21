@@ -30,7 +30,15 @@ def train(
     tokenizer = get_tokenizer()
     model = get_model(model_dir)
     cached_model_data_path = model_dir / "cached_model.dat"
-    train_dataset, eval_dataset = get_datasets(tokenizer, dataset_dir, use_cached_model_data, cached_model_data_path, eval_path_or_ratio, lang, count)
+    train_dataset, eval_dataset = get_datasets(
+        tokenizer,
+        dataset_dir,
+        use_cached_model_data,
+        cached_model_data_path,
+        eval_path_or_ratio,
+        lang,
+        count
+    )
     do_eval = eval_dataset is not None
     metric = evaluate.load("accuracy") if do_eval else None
 

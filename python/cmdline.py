@@ -24,7 +24,8 @@ def train_cmd(args):
         args.n,
         args.f,
         args.resume,
-        args.use_cached_model_data)
+        args.use_cached_model_data
+    )
 
 
 def transform_ir_cmd(args):
