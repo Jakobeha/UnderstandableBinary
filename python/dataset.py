@@ -1,3 +1,4 @@
+import pickle
 from pathlib import Path
 
 from code_type import CodeType
@@ -74,6 +75,17 @@ class ModelData:
         self.paths = []
         self.sources = []
         self.disassembleds = []
+
+    PICKLE_PROTOCOL = 5
+
+    def save(self, path: Path):
+        with path.open("wb") as file:
+            pickle.dump(self, file, protocol=self.PICKLE_PROTOCOL)
+
+    @staticmethod
+    def load(path: Path):
+        with path.open("rb") as file:
+            return pickle.load(file)
 
 
 # (idk why but IntelliJ can't find torch.utils.data)

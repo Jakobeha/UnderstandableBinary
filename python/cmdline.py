@@ -16,7 +16,15 @@ def generate_cmd(args):
 
 
 def train_cmd(args):
-    train(args.i, args.eval, args.o, args.l, args.n, args.f, args.resume)
+    train(
+        args.i,
+        args.eval,
+        args.o,
+        args.l,
+        args.n,
+        args.f,
+        args.resume,
+        args.use_cached_model_data)
 
 
 def transform_ir_cmd(args):
@@ -143,6 +151,11 @@ def main():
         "--resume",
         action="store_true",
         help="resume training from the last checkpoint"
+    )
+    train_parser.add_argument(
+        "--use-cached-model-data",
+        action="store_true",
+        help="if present, instead of re-scraping the model data, use the cached version"
     )
     train_parser.set_defaults(func=train_cmd)
 
