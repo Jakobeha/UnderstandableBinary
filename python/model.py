@@ -4,7 +4,7 @@ from typing import Optional
 from transformers import AutoTokenizer, T5ForConditionalGeneration
 from pathlib import Path
 
-USE_SMALL = False
+USE_SMALL = True
 
 
 def get_pretrained_id() -> str:

@@ -26,7 +26,7 @@ class _CCodeType(CodeType):
             log.debug(f"Skipping empty file {input_path}")
             return
         with input_path.open(encoding="utf8") as input_file:
-            expected_source = self._parse_source(expected_path)
+            expected_text, expected_source = self._parse_source(expected_path)
             input_data = input_file.read()
             # Functions in disassembled code are already denoted
             input_components = re.split(r"^// FUNCTION (\w+)$", input_data, flags=re.MULTILINE)
@@ -41,62 +41,69 @@ class _CCodeType(CodeType):
                         f"{str(expected_path)}"
                     )
                     continue
-                expected_function_data = self._node_text(expected_function)
+                expected_function_data = self._node_text(expected_path, expected_text, expected_function)
                 yield ModelStr(function_data), ModelStr(expected_function_data)
 
     def process_input(self, input_path: Path) -> Iterator[ModelStr]:
         self._assert_disassembled_suffix(input_path)
-        input_source = self._parse_source(input_path)
+        input_text, input_source = self._parse_source(input_path)
         for node in input_source.cursor.get_children():
             if node.is_definition():
-                yield ModelStr(self._node_text(node))
+                yield ModelStr(self._node_text(input_path, input_text, node))
 
     def process_output(self, output_data: Iterator[ModelStr]) -> str | bytes:
         return "\n\n".join(output_data)
 
-    def _parse_source(self, source_path: Path) -> TranslationUnit:
+    def _parse_source(self, source_path: Path) -> (str, TranslationUnit):
         self._assert_source_suffix(source_path)
+        with source_path.open("r") as file:
+            text = file.read()
         unit = TranslationUnit.from_source(
             source_path,
+            unsaved_files=[(source_path, text)],
             options=TranslationUnit.PARSE_INCOMPLETE | TranslationUnit.PARSE_SKIP_FUNCTION_BODIES,
         )
 
-        # If we have bad imports we need to remove them
-        # Unfortunately it doesn't seem like there's an easy better way in Python,
-        # because the way to prevent this is Preprocessor::SetSuppressIncludeNotFoundError
-        # but it's in a completely different API than python's libclang uses
-        # so we would need to rewrite the parsing bindings
-        if len(unit.diagnostics) > 0 and unit.diagnostics[0].spelling.endswith("file not found"):
-            with source_path.open("r") as file:
-                original_contents = file.read()
-            modified_path = source_path.with_stem(".tmp" + source_path.stem)
-            lines = original_contents.splitlines()
+        # If the entire code is wrapped in #ifdef or #if, we will remove it
+        if next(unit.cursor.get_children(), None) is None:
+            lines = text.splitlines()
             try:
-                while len(unit.diagnostics) > 0 and unit.diagnostics[0].spelling.endswith("file not found"):
-                    lines.pop(unit.diagnostics[0].location.line - 1)
-                    unit = TranslationUnit.from_source(
-                        modified_path,
-                        unsaved_files=[(modified_path, "\n".join(lines))],
-                        options=TranslationUnit.PARSE_NONE
+                while lines[-1].strip() == "":
+                    lines.pop()
+                if lines[-1].startswith("#endif"):
+                    ifdef_idx = next(
+                        (i for i, line in enumerate(lines) if line.startswith("#ifdef ") or line.startswith("#if ")),
+                        None
                     )
+                    if ifdef_idx is not None:
+                        lines.pop()
+                        lines.pop(ifdef_idx)
+                text = "\n".join(lines)
+                unit = TranslationUnit.from_source(
+                    source_path,
+                    unsaved_files=[(source_path, text)],
+                    options=TranslationUnit.PARSE_NONE
+                )
             except Exception as e:
-                raise Exception("Error parsing after removing bad imports") from e
-        return unit
+                raise Exception("Error parsing after removing surrounding #ifdef bad imports") from e
+        return text, unit
 
     # noinspection PyMethodMayBeStatic
     def _search_function(self, node: Cursor, function_name: str) -> Cursor | None:
         # Remember: we skip parsing function bodies, so aren't traversing unnecessarily deep
         for node in node.walk_preorder():
-            if node.is_definition() and node.mangled_name == function_name:
+            if node.is_definition() and node.spelling == function_name:
                 return node
         return None
 
     # noinspection PyMethodMayBeStatic
-    def _node_text(self, node: Cursor) -> str:
+    def _node_text(self, source_path: Path, text: str, node: Cursor) -> str:
         extent: SourceRange = node.extent
-        with extent.start.file.open() as file:
-            file.seek(extent.start.offset)
-            return file.read(extent.end.offset - extent.start.offset)
+        path = extent.start.file.name
+        if path != str(source_path):
+            with os.open(path, os.O_RDONLY) as file:
+                text = file.read()
+        return text[extent.start.offset:extent.end.offset]
 
     def _assert_source_suffix(self, input_path: Path):
         if not any(input_path.name.endswith(src_ext) for src_ext in self.source_extensions):
