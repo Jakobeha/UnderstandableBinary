@@ -12,6 +12,6 @@ if [ -n "$2" ]; then
 fi
 
 docker build -t get-data "$PARENT_DIR"
-docker run --name get_data get_data "bash /install-packages.sh $N"
+docker run --name get-data get-data bash /install-packages.sh "$N"
 docker stop get-data
 docker cp get-data:/sources/. "$DATASET_DIR"
