@@ -98,5 +98,5 @@ export -f process_one
 # Process each subdirectory (artifact), but process $NUM_PROCESSES simultaneously
 # `exec` also means that this must be the last command
 echo "*** PROCESSING ALL IN $DATASET_DIR ($NUM_PROCESSES simultaneous)"
-find "$DATASET_DIR"/* -prune -print0 |
+find "$DATASET_DIR"/* -type d -prune -print0 |
   exec xargs -P "$NUM_PROCESSES" -0 -n 1 -I {} bash -c 'process_one "$@"' _ {}

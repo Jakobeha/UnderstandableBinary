@@ -5,8 +5,11 @@ LABEL maintainer="Jakob Hain <jakobeha@gmail.com>"
 
 # Add sources list
 ADD deb-sources.list /etc/apt/sources.list
-# Add install-packages script
-ADD install-packages.sh /install-packages.sh
+# Add source-packages script
+ADD source-packages.sh /source-packages.sh
 
 # Refresh package index
 RUN apt-get update --allow-unauthenticated && apt-get upgrade -y --allow-unauthenticated
+
+# Install source-packages.sh dependencies
+RUN apt-get install dpkg-dev -y --allow-unauthenticated
