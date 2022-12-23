@@ -10,6 +10,10 @@
       <excludeFolder url="file://$MODULE_DIR$/preprocessor/target" />
       <excludeFolder url="file://$MODULE_DIR$/get-data/preprocessor/target" />
       <excludeFolder url="file://$MODULE_DIR$/ghidra/latest_release" />
+      <excludeFolder url="file://$MODULE_DIR$/vcpkg-data/vcpkg" />
+      <excludeFolder url="file://$MODULE_DIR$/vcpkg-data/scratch" />
+      <excludeFolder url="file://$MODULE_DIR$/get-data/vcpkg/vcpkg" />
+      <excludeFolder url="file://$MODULE_DIR$/get-data/vcpkg/scratch" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

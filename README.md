@@ -1,15 +1,20 @@
-# UnderstandableBinary - use ML to analyze and disassemble binary files
+# UnderstandableBinary - ML binary demangler
 
 ## What is this?
 
-This is a project to use machine learning to analyze and disassemble binary files. It is a work in progress. TODO
+This is a project to use machine learning to convert raw disassembled binary files into cleaner variations.
+
+We take a large dataset of C/C++ code, compile it, disassemble the binaries, then train a model to translate the disassembled binaries into their original version,.
+
+Afterward, we have a model which can convert ugly disassembled code into cleaner code.
 
 ## How to install
 
-Install dependencies:
+Install dependencies using your platform's package manager (recommend [Homebrew](https://brew.sh/) on macOS):
 
 - [Git LFS](https://git-lfs.com/)
 - [clang 14.0.6](https://releases.llvm.org/download.html)
+- [vcpkg](https://vcpkg.io/en/index.html)
 
 ```shell
 > git clone git@github.com:Jakobeha/UnderstandableBinary.git
@@ -22,14 +27,33 @@ Install dependencies:
 > run.sh [options]...
 ```
 
+You can also open in IntelliJ and there are sample run configurations.
+Note that you may need to change some global library locations (e.g. path to Poetry)
+
 ## Project layout
 
-The root project is a python package which uses [poetry](https://python-poetry.org/) for dependency management, however there may be sub-packages in Rust or other languages. The python scripts are mainly wrappers which handle simple tasks, the sub-packages and HuggingFace libraries do the heavy lifting
+This project uses many different languages and frameworks. READMEs and `run.sh` scripts are in subdirectories.
+The root is an IntelliJ project, however modules are in subdirectories.
 
-- `python/*`: Python scripts
-- `get-data`: Dockerfile / generator which downloads APT repositories and runs the preprocessor to generate training examples
-- `preprocessor`: Rust project which converts source code and assembly into input and output IR 
-  - Dissassembles the object files and divides the source and object into smaller sections which are the examples; converts the assembly into input IR and source into output IR
-- `local/`: Local directory where you can store downloaded / trained models which is not committed
+- `../UnderstandableBinary-data/`: The default location where the dataset is generated and stored.
+  This cannot be in `UnderstandableBinary/` because the dataset is extremely large and contains code,
+  which confuses a lot of tools and find and makes everything a hassle.
+  You can override the dataset dir, and you may want to make it on a separate volume with more storage.
+- `python/`: Python scripts which use [poetry](https://python-poetry.org/) for dependency management.
+  Mainly for training and running the model since that is in Python
+- `get-data/`: Generate dataset
+  - `apt/`: Download and build code from debian APT repo
+  - `vcpkg/`: Download and build code from [vcpkg](https://vcpkg.io/en/index.html) repo
+  - `disassemble/`: Disassemble binaries using [Ghidra](https://ghidra-sre.org/)
+- `local/`: Local directory where you can store scratch data which isn't the dataset. Also, some log files are stored here
+  - `ghidra_logs/`: Ghidra script log files 
+- `docs/`: documentation
+
+## Contributing
+
+Conventions:
+
+- File and directory names are usually `kebab-case` unless there's another reason (e.g. Java)
+- Use PEP and shellcheck (IntelliJ defaults)
 
 TODO: add more

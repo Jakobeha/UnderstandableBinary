@@ -2,8 +2,12 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/UnderstandableBinary.iml" filepath="$PROJECT_DIR$/.idea/UnderstandableBinary.iml" />
-      <module fileurl="file://$PROJECT_DIR$/ghidra/ghidra.iml" filepath="$PROJECT_DIR$/ghidra/ghidra.iml" />
+      <module fileurl="file://$PROJECT_DIR$/get-data/apt/apt.iml" filepath="$PROJECT_DIR$/get-data/apt/apt.iml" />
+      <module fileurl="file://$PROJECT_DIR$/get-data/disassemble/disassemble.iml" filepath="$PROJECT_DIR$/get-data/disassemble/disassemble.iml" />
+      <module fileurl="file://$PROJECT_DIR$/docs/docs.iml" filepath="$PROJECT_DIR$/docs/docs.iml" />
+      <module fileurl="file://$PROJECT_DIR$/local/local.iml" filepath="$PROJECT_DIR$/local/local.iml" />
+      <module fileurl="file://$PROJECT_DIR$/python/python.iml" filepath="$PROJECT_DIR$/python/python.iml" />
+      <module fileurl="file://$PROJECT_DIR$/get-data/vcpkg/vcpkg.iml" filepath="$PROJECT_DIR$/get-data/vcpkg/vcpkg.iml" />
     </modules>
   </component>
 </project>

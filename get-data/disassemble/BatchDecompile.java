@@ -31,22 +31,27 @@ public class BatchDecompile extends GhidraScript {
         var srcDir = this.getScriptArgs().length > 0 ?
                 Path.of(this.getScriptArgs()[0]).normalize() :
                 this.askDirectory("Data (sources) root", "OK").toPath();
-        var importExistingFiles = this.getScriptArgs().length > 2 ?
+        var importExistingFiles = this.getScriptArgs().length > 1 ?
                 Boolean.parseBoolean(this.getScriptArgs()[1]) :
                 this.askYesNo("Import existing files", "OK");
         var decompileExistingFiles = this.getScriptArgs().length > 2 ?
                 Boolean.parseBoolean(this.getScriptArgs()[2]) :
                 this.askYesNo("Decompile existing files", "OK");
+        var watchMode = this.getScriptArgs().length > 3 ?
+                Boolean.parseBoolean(this.getScriptArgs()[3]) :
+                this.askYesNo("Watch mode", "OK");
         var project = state.getProject();
-        this.batchDecompile(project, srcDir, importExistingFiles, decompileExistingFiles);
+        this.batchDecompile(project, srcDir, importExistingFiles, decompileExistingFiles, watchMode);
     }
 
     public void batchDecompile(
             Project project,
             Path projectDir,
             boolean importExistingFiles,
-            boolean decompileExistingFiles
+            boolean decompileExistingFiles,
+            boolean watchMode
     ) throws Exception {
+        // TODO: Watch mode, also refactor so that it decompiles vcpkg artifacts and handles apt artifact nesting properly
         // We can't decompile while searching (streaming) because it Files.find is kind of broken
         this.logInfo( "*** SEARCHING FILES IN %s...", projectDir);
         List<Path> paths;
@@ -220,7 +225,7 @@ public class BatchDecompile extends GhidraScript {
     // We want to return the relative path *inside* of the ghidra.rep folder,
     // so that ghidra.rep has an "equivalent file system hierarchy" where each object file corresponds to ghidra program data
     private String _getRelativeSerialPath(Path binaryPath, Project project) {
-        var binaryPathWithDifferentExtension = binaryPath.getParent().resolve(binaryPath.getFileName().toString() + ".ghidra");
+        var binaryPathWithDifferentExtension = binaryPath.getParent().resolve(binaryPath.getFileName().toString() + ".ghidra").toAbsolutePath().normalize();
         var path = getProjectPath(project).relativize(binaryPathWithDifferentExtension).toString();
         assert path.startsWith("../");
         return "filetree" + path.substring(2);
@@ -248,7 +253,7 @@ public class BatchDecompile extends GhidraScript {
     }
 
     private Path getProjectPath(Project project) {
-        return project.getProjectLocator().getProjectDir().toPath().normalize();
+        return project.getProjectLocator().getProjectDir().toPath().toAbsolutePath().normalize();
     }
 
     private Path getDisassembledPath(Path binaryPath) {

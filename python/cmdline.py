@@ -1,5 +1,4 @@
 from pathlib import Path
-from download import download
 from generate import generate
 from train import train
 from transform_ir import transform_ir
@@ -7,25 +6,12 @@ from transform import transform
 from utils import PROJECT_PATH, INT32_MAX, path_or_float
 
 
-def download_cmd(args):
-    download(args.o, args.l, args.n, args.f)
-
-
 def generate_cmd(args):
     generate(args.i, args.o, args.l, args.n, args.f)
 
 
 def train_cmd(args):
-    train(
-        args.i,
-        args.eval,
-        args.o,
-        args.l,
-        args.n,
-        args.f,
-        args.resume,
-        args.use_cached_model_data
-    )
+    train(args.i, args.eval, args.o, args.l, args.n, args.f, args.resume, args.use_cached_model_data)
 
 
 def transform_ir_cmd(args):
@@ -41,36 +27,6 @@ def main():
     parser = argparse.ArgumentParser()
 
     subparsers = parser.add_subparsers(required=True)
-
-    download_parser = subparsers.add_parser(
-        "download-dataset",
-        help="download packages from APT, compile, scrape .c and .o files, and preprocess to generate model examples"
-    )
-    download_parser.add_argument(
-        "-o",
-        type=Path,
-        help="output directory",
-        default=PROJECT_PATH / "local/dataset"
-    )
-    download_parser.add_argument(
-        "-f",
-        help="force overwrite output directory",
-        action="store_true"
-    )
-    download_parser.add_argument(
-        "-l",
-        type=str,
-        help="languages (separated by commas, default = all)",
-        default="c"
-    )
-    download_parser.add_argument(
-        "-n",
-        type=int,
-        help="number of files to add (default = all files, but note that the APT repo is massive and this would take"
-             "days if not weeks or months)",
-        default=INT32_MAX
-    )
-    download_parser.set_defaults(func=download_cmd)
 
     generate_parser = subparsers.add_parser(
         "gen-dataset",

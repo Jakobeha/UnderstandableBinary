@@ -1,23 +1,63 @@
+#!/usr/bin/env bash
+
+NUM_GHIDRA_INSTANCES=1
 PARENT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-DATASET_DIR=$PARENT_DIR/../local/dataset
+DATASET_DIR=$PARENT_DIR/../../../UnderstandableBinary-data
+GHIDRA_SCRIPT_LOG_DIR=$PARENT_DIR/../local/ghidra-logs
+NUM_PACKAGES=4294967295
+RECREATE=0
 
-N="$1"
-if [ -z "$N" ]; then
-  echo "Usage: $0 <number of packages to source> [<dataset dir>]"
-  exit 1
+# Show help if necessary
+function show_help() {
+  usage="Usage: $0 [-o DATASET_DIR] [-n NUM_PACKAGES] [-l GHIDRA_SCRIPT_LOG_DIR] [-j NUM_GHIDRA_INSTANCES] [-f] [-F]
+
+Create the dataset by downloading and building packages, then disassembing using Ghidra.
+
+    -o DATASET_DIR             Directory where the dataset is installed. Default: $DATASET_DIR
+    -n NUM_PACKAGES            Number of packages to install. Default: all
+    -l GHIDRA_SCRIPT_LOG_DIR   Directory where the Ghidra script logs are stored. Default: $GHIDRA_SCRIPT_LOG_DIR
+    -j NUM_GHIDRA_INSTANCES    Number of Ghidra instances to run in parallel. Default: $NUM_GHIDRA_INSTANCES
+    -f                         Recreate the entire dataset.
+                               Otherwise we will resume and skip already-processed (e.g. if it exited early) Default: false"
+  echo "$usage"
+}
+
+# Process options
+OPTIND=1
+while getopts "h?j:o:n:l:f:" opt; do
+  case "$opt" in
+    h|\?)
+      show_help
+      exit 0
+      ;;
+    j)  NUM_GHIDRA_INSTANCES=$OPTARG
+      ;;
+    o)  DATASET_DIR=$OPTARG
+      ;;
+    n)  NUM_PACKAGES=$OPTARG
+      ;;
+    l)  GHIDRA_SCRIPT_LOG_DIR=$OPTARG
+      ;;
+    f)  RECREATE=1
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+[ "${1:-}" = "--" ] && shift
+
+# *don't* remove the entire directory if -f, because we instead pass to children, because we also need to remove the docker container
+if [ "$RECREATE" -eq 1 ]; then
+  FORCE="-f"
+else
+  FORCE=""
 fi
 
-if [ -n "$2" ]; then
-  DATASET_DIR="$2"
+# Create the dataset directory if it doesn't exist
+if [ ! -d "$DATASET_DIR" ]; then
+  mkdir -p "$DATASET_DIR"
 fi
 
-docker build -t get-data "$PARENT_DIR"
-docker run --name get-data get-data bash /source-packages.sh "$N"
-RESULT=$?
-docker stop get-data
-if [ $RESULT -ne 0 ]; then
-  echo "Failed to source packages"
-  docker rm get-data
-  exit 1
-fi
-docker cp get-data:/sources/. "$DATASET_DIR"
+# Run everything simultaneously, and run Ghidra in watch mode (Ghidra doesn't need to force because it will only process new files)
+$PARENT_DIR/apt/run.sh -o "$DATASET_DIR/apt" -n "$((NUM_PACKAGES / 2))" "$FORCE" &
+$PARENT_DIR/vcpkg/run.sh -o "$DATASET_DIR/vcpkg" -n "$((NUM_PACKAGES / 2))" "$FORCE" &
+$PARENT_DIR/ghidra/run.sh -o "$DATASET_DIR" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES" -w &

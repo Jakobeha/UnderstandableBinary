@@ -2,25 +2,24 @@
 
 N="$1"
 if [ -z "$N" ]; then
-  echo "Usage: $0 <number of packages to install>"
+  echo "Usage: $0 <NUM_PACKAGES>"
   exit 1
 fi
 
-set -o pipefail
+mkdir -p data
+cd data || exit 1
+mkdir -p stats
 
 echo "*** FETCHING LIST OF $N PACKAGES"
 apt-cache search "" | head -"$N" | cut -d' ' -f1 > packages.txt
 
 echo "*** SOURCING AND BUILDING $(< packages.txt wc -l) PACKAGES..."
 NUM_SUCCESS=0
-mkdir sources || true
-cd sources || exit 1
 while read -r package; do
-  if compgen -G "$package.*.failed*" > /dev/null; then
+  if [ -f "stats/$package.failed" ]; then
     echo "Skipping $package (failed before, num success=$NUM_SUCCESS)"
     continue
-  fi
-  if compgen -G "$package*" > /dev/null; then
+  elif [ -f "stats/$package.success" ]; then
     echo "** Skipping $package (already done, num success=$NUM_SUCCESS)"
     NUM_SUCCESS=$((NUM_SUCCESS + 1))
     continue
@@ -31,7 +30,7 @@ while read -r package; do
   if [ $? -ne 0 ]; then
     echo "** Failed to build-dep $package"
     # Write file so that we skip in subsequent calls
-    touch "$package.build-dep.failed"
+    touch "stats/$package.failed"
     continue
   fi
   echo "** source $package (num success=$NUM_SUCCESS)"
@@ -40,10 +39,11 @@ while read -r package; do
   if [ $? -ne 0 ]; then
     echo "** Failed to source $package"
     # Write file so that we skip in subsequent calls
-    touch "$package.source.failed"
+    touch "stats/$package.failed"
     continue
   fi
+  touch "stats/$package.success"
   NUM_SUCCESS=$((NUM_SUCCESS + 1))
-done < ../packages.txt
+done < packages.txt
 
 echo "*** SOURCED AND BUILT $NUM_SUCCESS PACKAGES..."
