@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-NUM_GHIDRA_INSTANCES=1
+NUM_GHIDRA_INSTANCES=2
 PARENT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 DATASET_DIR=$PARENT_DIR/../../../UnderstandableBinary-data
 GHIDRA_SCRIPT_LOG_DIR=$PARENT_DIR/../local/ghidra-logs
@@ -45,6 +45,11 @@ done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
 
+if [ "$NUM_GHIDRA_INSTANCES" -lt 2 ]; then
+  echo "ERROR: NUM_GHIDRA_INSTANCES must be at least 2"
+  exit 1
+fi
+
 # *don't* remove the entire directory if -f, because we instead pass to children, because we also need to remove the docker container
 if [ "$RECREATE" -eq 1 ]; then
   FORCE="-f"
@@ -60,4 +65,5 @@ fi
 # Run everything simultaneously, and run Ghidra in watch mode (Ghidra doesn't need to force because it will only process new files)
 $PARENT_DIR/apt/run.sh -o "$DATASET_DIR/apt" -n "$((NUM_PACKAGES / 2))" "$FORCE" &
 $PARENT_DIR/vcpkg/run.sh -o "$DATASET_DIR/vcpkg" -n "$((NUM_PACKAGES / 2))" "$FORCE" &
-$PARENT_DIR/ghidra/run.sh -o "$DATASET_DIR" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES" -w &
+$PARENT_DIR/ghidra/run.sh -o "$DATASET_DIR/apt" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$((NUM_GHIDRA_INSTANCES / 2))" -w "$DATASET_DIR/apt/stats" &
+$PARENT_DIR/ghidra/run.sh -o "$DATASET_DIR/vcpkg/packages" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$((NUM_GHIDRA_INSTANCES / 2))" -w "$DATASET_DIR/vcpkg/stats" &

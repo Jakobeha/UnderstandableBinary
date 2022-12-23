@@ -9,47 +9,47 @@ GHIDRA_SCRIPT_NAME="BatchDecompile.java"
 # Ghidra uses 'false' and 'true' instead of '0' and '1'
 IMPORT_EXISTING_FILES=false
 DECOMPILE_EXISTING_FILES=false
-WATCH_MODE=false
+STATS_DIR=""
 
 # Show help if necessary
 function show_help() {
-  usage="Usage: $0 [-o DATASET_DIR] [-l SCRIPT_LOG_DIR] [-j NUM_INSTANCES] [-f] [-F] [-w]
+  usage="Usage: $0 [-o DATASET_DIR] [-w STATS_DIR] [-l SCRIPT_LOG_DIR] [-j NUM_INSTANCES] [-f] [-F]
 
 Disassemble object files (.o) in DATASET_DIR using Ghidra, creating (.o.c) files and also Ghidra projects.
 DATASET_DIR should contain subdirectories containing artifacts; each artifact is processed separately.
 
     -o DATASET_DIR    Directory where the dataset is stored. Default: $PARENT_DIR/../../../UnderstandableBinary-data
+    -w STATS_DIR      Watch for new files (empty STATS_DIR/*.success files are markers) and decompile them.
+                      This changes the mode so that Ghidra will only decompile *.success marked files.
+                      However it will attempt to decompile old *.success files, overwriting if -f or -F is passed,
+                      else skipping unless the file actually needs to be decompiled. Default: \"\" (no watch mode)
     -l SCRIPT_LOG_DIR Directory where the script logs are stored. Default: $PARENT_DIR/../../local/ghidra-logs
     -j NUM_INSTANCES  Number of processes to run in parallel, 0 for as many as possible. Default: 1
     -f                Decompile existing files but DO NOT reimport and reanalyze cached Ghidra files. Default: false
-    -F                Decompile existing files and DO reimport and reanalyze cached Ghidra files. Default: false
-    -w                Watch for new files (empty *.success files are markers) and decompile them.
-                      This changes the mode so that Ghidra will only decompile *.success marked files.
-                      However it will attempt to decompile old *.success files, overwriting if -f or -F is passed,
-                      and skipping unless the file really needs to be decompiled otherwise. Default: false"
+    -F                Decompile existing files and DO reimport and reanalyze cached Ghidra files. Default: false"
   echo "$usage"
 }
 
 # Process options
 OPTIND=1
-while getopts "h?j:o:l:fFw" opt; do
+while getopts "h?o:w:l:j:fF" opt; do
   case "$opt" in
     h|\?)
       show_help
       exit 0
       ;;
-    j)  NUM_INSTANCES=$OPTARG
-      ;;
     o)  DATASET_DIR=$OPTARG
       ;;
+    w)  STATS_DIR=$OPTARG
+      ;;
     l)  SCRIPT_LOG_DIR=$OPTARG
+      ;;
+    j)  NUM_INSTANCES=$OPTARG
       ;;
     f)  DECOMPILE_EXISTING_FILES=true
       ;;
     F)  IMPORT_EXISTING_FILES=true
         DECOMPILE_EXISTING_FILES=true
-      ;;
-    w)  WATCH_MODE=true
       ;;
   esac
 done
@@ -71,10 +71,19 @@ fi
 echo "*** EXTRACTING .a FILES"
 function preprocess_a() {
   apath=$1
+  if [ "$apath" == "{}" ] ; then
+    # Idk why this happens
+    return
+  fi
+  if [ -d "$apath.extracted" ] && [ "$IMPORT_EXISTING_FILES" == "false" ] ; then
+    echo "** SKIPPING $apath (already extracted)"
+    return
+  fi
   echo "** EXTRACTING $apath"
   mkdir -p "$apath.extracted"
-  cd "$apath.extracted" && ar -x "../$(basename $apath)"
+  cd "$apath.extracted" && ar -x "../$(basename "$apath")"
 }
+export IMPORT_EXISTING_FILES
 export -f preprocess_a
 find "$DATASET_DIR" -name "*.a" -print0 | xargs -0 -n 1 -P "$NUM_INSTANCES" -I {} bash -c 'preprocess_a "$@"' _ {}
 
@@ -95,7 +104,7 @@ function process_one() {
     "$artifactDir" ghidra \
     -scriptPath "$PARENT_DIR" \
     -scriptLog "$scriptLogFile" \
-    -preScript "$PARENT_DIR/$GHIDRA_SCRIPT_NAME" "$artifactDir" "$IMPORT_EXISTING_FILES" "$DECOMPILE_EXISTING_FILES" "$WATCH_MODE"
+    -preScript "$PARENT_DIR/$GHIDRA_SCRIPT_NAME" "$artifactDir" "$IMPORT_EXISTING_FILES" "$DECOMPILE_EXISTING_FILES" "$STATS_DIR"
   # shellcheck disable=SC2181
   exit=$?
 
@@ -110,9 +119,9 @@ export GHIDRA_DIR
 export PARENT_DIR
 export SCRIPT_LOG_DIR
 export GHIDRA_SCRIPT_NAME
-export IMPORT_EXISTING_FILES
+# export IMPORT_EXISTING_FILES
 export DECOMPILE_EXISTING_FILES
-export WATCH_MODE
+export STATS_DIR
 export -f process_one
 
 # Process each subdirectory (artifact), but process $NUM_INSTANCES simultaneously

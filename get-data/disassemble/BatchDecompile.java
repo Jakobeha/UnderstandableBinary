@@ -37,11 +37,11 @@ public class BatchDecompile extends GhidraScript {
         var decompileExistingFiles = this.getScriptArgs().length > 2 ?
                 Boolean.parseBoolean(this.getScriptArgs()[2]) :
                 this.askYesNo("Decompile existing files", "OK");
-        var watchMode = this.getScriptArgs().length > 3 ?
-                Boolean.parseBoolean(this.getScriptArgs()[3]) :
-                this.askYesNo("Watch mode", "OK");
+        var statsDir = this.getScriptArgs().length > 3 ?
+                this.getScriptArgs()[3] :
+                this.askString("Stats dir for watch mode (empty otherwise)", "OK", "");
         var project = state.getProject();
-        this.batchDecompile(project, srcDir, importExistingFiles, decompileExistingFiles, watchMode);
+        this.batchDecompile(project, srcDir, importExistingFiles, decompileExistingFiles, statsDir);
     }
 
     public void batchDecompile(
@@ -49,7 +49,7 @@ public class BatchDecompile extends GhidraScript {
             Path projectDir,
             boolean importExistingFiles,
             boolean decompileExistingFiles,
-            boolean watchMode
+            String statsDir
     ) throws Exception {
         // TODO: Watch mode, also refactor so that it decompiles vcpkg artifacts and handles apt artifact nesting properly
         // We can't decompile while searching (streaming) because it Files.find is kind of broken
