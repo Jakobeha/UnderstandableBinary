@@ -1,38 +1,44 @@
 #!/usr/bin/env bash
 
-NUM_PROCESSES=1
+NUM_INSTANCES=1
 PARENT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-DATASET_DIR=$PARENT_DIR/../local/dataset
-GHIDRA_DIR=$PARENT_DIR/latest_release
+DATASET_DIR=$PARENT_DIR/../../../UnderstandableBinary-data
+SCRIPT_LOG_DIR=$PARENT_DIR/../local/ghidra-logs
+GHIDRA_DIR=$PARENT_DIR/ghidra
 GHIDRA_SCRIPT_NAME="BatchDecompile.java"
-# TIMEOUT=1800000
+# Ghidra uses 'false' and 'true' instead of '0' and '1'
 IMPORT_EXISTING_FILES=false
 DECOMPILE_EXISTING_FILES=false
+WATCH_MODE=false
 
 # Show help if necessary
 function show_help() {
-  usage="Usage: $0 [-j NUM_PROCESSES] [-o DATASET_DIR] [-l SCRIPT_LOG_DIR] [-f] [-F]
+  usage="Usage: $0 [-o DATASET_DIR] [-l SCRIPT_LOG_DIR] [-j NUM_INSTANCES] [-f] [-F] [-w]
 
 Disassemble object files (.o) in DATASET_DIR using Ghidra, creating (.o.c) files and also Ghidra projects.
 DATASET_DIR should contain subdirectories containing artifacts; each artifact is processed separately.
 
-    -j NUM_PROCESSES  Number of processes to run in parallel, 0 for as many as possible. Default: 1
-    -o DATASET_DIR    Directory where the dataset is stored. Default: $PARENT_DIR/../local/dataset
-    -l SCRIPT_LOG_DIR Directory where the script logs are stored. Default: $PARENT_DIR/../local/logs
+    -o DATASET_DIR    Directory where the dataset is stored. Default: $PARENT_DIR/../../../UnderstandableBinary-data
+    -l SCRIPT_LOG_DIR Directory where the script logs are stored. Default: $PARENT_DIR/../../local/ghidra-logs
+    -j NUM_INSTANCES  Number of processes to run in parallel, 0 for as many as possible. Default: 1
     -f                Decompile existing files but DO NOT reimport and reanalyze cached Ghidra files. Default: false
-    -F                Decompile existing files and DO reimport and reanalyze cached Ghidra files. Default: false"
+    -F                Decompile existing files and DO reimport and reanalyze cached Ghidra files. Default: false
+    -w                Watch for new files (empty *.success files are markers) and decompile them.
+                      This changes the mode so that Ghidra will only decompile *.success marked files.
+                      However it will attempt to decompile old *.success files, overwriting if -f or -F is passed,
+                      and skipping unless the file really needs to be decompiled otherwise. Default: false"
   echo "$usage"
 }
 
 # Process options
 OPTIND=1
-while getopts "h?j:o:l:fF:" opt; do
+while getopts "h?j:o:l:fFw" opt; do
   case "$opt" in
     h|\?)
       show_help
       exit 0
       ;;
-    j)  NUM_PROCESSES=$OPTARG
+    j)  NUM_INSTANCES=$OPTARG
       ;;
     o)  DATASET_DIR=$OPTARG
       ;;
@@ -42,6 +48,8 @@ while getopts "h?j:o:l:fF:" opt; do
       ;;
     F)  IMPORT_EXISTING_FILES=true
         DECOMPILE_EXISTING_FILES=true
+      ;;
+    w)  WATCH_MODE=true
       ;;
   esac
 done
@@ -58,6 +66,17 @@ fi
 if [ "$SCRIPT_LOG_DIR" != "" ]; then
   mkdir -p "$SCRIPT_LOG_DIR"
 fi
+
+# Preprocessing: extract every .a file so that we can process (we could also do this in the GhidraScript but it's easier in Bash)
+echo "*** EXTRACTING .a FILES"
+function preprocess_a() {
+  apath=$1
+  echo "** EXTRACTING $apath"
+  mkdir -p "$apath.extracted"
+  cd "$apath.extracted" && ar -x "../$(basename $apath)"
+}
+export -f preprocess_a
+find "$DATASET_DIR" -name "*.a" -print0 | xargs -0 -n 1 -P "$NUM_INSTANCES" -I {} bash -c 'preprocess_a "$@"' _ {}
 
 # Processing logic (for each subdirectory)
 function process_one() {
@@ -76,7 +95,7 @@ function process_one() {
     "$artifactDir" ghidra \
     -scriptPath "$PARENT_DIR" \
     -scriptLog "$scriptLogFile" \
-    -preScript "$PARENT_DIR/$GHIDRA_SCRIPT_NAME" "$artifactDir" "$IMPORT_EXISTING_FILES" "$DECOMPILE_EXISTING_FILES"
+    -preScript "$PARENT_DIR/$GHIDRA_SCRIPT_NAME" "$artifactDir" "$IMPORT_EXISTING_FILES" "$DECOMPILE_EXISTING_FILES" "$WATCH_MODE"
   # shellcheck disable=SC2181
   exit=$?
 
@@ -93,10 +112,11 @@ export SCRIPT_LOG_DIR
 export GHIDRA_SCRIPT_NAME
 export IMPORT_EXISTING_FILES
 export DECOMPILE_EXISTING_FILES
+export WATCH_MODE
 export -f process_one
 
-# Process each subdirectory (artifact), but process $NUM_PROCESSES simultaneously
+# Process each subdirectory (artifact), but process $NUM_INSTANCES simultaneously
 # `exec` also means that this must be the last command
-echo "*** PROCESSING ALL IN $DATASET_DIR ($NUM_PROCESSES simultaneous)"
+echo "*** PROCESSING ALL IN $DATASET_DIR ($NUM_INSTANCES instances)"
 find "$DATASET_DIR"/* -type d -prune -print0 |
-  exec xargs -P "$NUM_PROCESSES" -0 -n 1 -I {} bash -c 'process_one "$@"' _ {}
+  exec xargs -P "$NUM_INSTANCES" -0 -n 1 -I {} bash -c 'process_one "$@"' _ {}
