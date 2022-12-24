@@ -3,7 +3,7 @@ from generate import generate
 from train import train
 from transform_ir import transform_ir
 from transform import transform
-from utils import PROJECT_PATH, INT32_MAX, path_or_float
+from utils import DEFAULT_DATASET_PATH, DEFAULT_MODEL_PATH, INT32_MAX, path_or_float, DEFAULT_EXAMPLES_PATH
 
 
 def generate_cmd(args):
@@ -11,7 +11,7 @@ def generate_cmd(args):
 
 
 def train_cmd(args):
-    train(args.i, args.eval, args.o, args.l, args.n, args.f, args.resume, args.use_cached_model_data)
+    train(args.i, args.eval, args.o, args.l, args.n, args.f, args.resume)
 
 
 def transform_ir_cmd(args):
@@ -29,24 +29,24 @@ def main():
     subparsers = parser.add_subparsers(required=True)
 
     generate_parser = subparsers.add_parser(
-        "gen-dataset",
+        "gen-examples",
         help="scrape .c and .o files and preprocess from an on-disk folder to generate model examples"
     )
     generate_parser.add_argument(
         "-i",
         type=Path,
-        help="input directory (must contain .c and .o files, can contain others and files may be deeply nested)",
-        required=True
+        help=f"dataset directory (default: {DEFAULT_DATASET_PATH})",
+        default=DEFAULT_DATASET_PATH
     )
     generate_parser.add_argument(
         "-o",
         type=Path,
-        help="output directory",
-        default=PROJECT_PATH / "local/dataset"
+        help=f"output file (default: {DEFAULT_EXAMPLES_PATH})",
+        default=DEFAULT_EXAMPLES_PATH
     )
     generate_parser.add_argument(
         "-f",
-        help="force overwrite output directory",
+        help="force overwrite output file",
         action="store_true"
     )
     generate_parser.add_argument(
@@ -58,7 +58,7 @@ def main():
     generate_parser.add_argument(
         "-n",
         type=int,
-        help="number of files to add (default = all files) (TODO: currently ignored)",
+        help="number of examples to add (default = all)",
         default=INT32_MAX
     )
     generate_parser.set_defaults(func=generate_cmd)
@@ -70,8 +70,8 @@ def main():
     train_parser.add_argument(
         "-i",
         type=Path,
-        help="input directory, contains the training data",
-        default=PROJECT_PATH / "local/dataset"
+        help=f"input examples file (default = {DEFAULT_EXAMPLES_PATH})",
+        default=DEFAULT_EXAMPLES_PATH
     )
     train_parser.add_argument(
         "--eval",
@@ -84,8 +84,8 @@ def main():
     train_parser.add_argument(
         "-o",
         type=Path,
-        help="output (model) directory",
-        default=PROJECT_PATH / "local/model"
+        help=f"output (model) directory (default = {DEFAULT_MODEL_PATH})",
+        default=DEFAULT_MODEL_PATH
     )
     train_parser.add_argument(
         "-f",
@@ -95,24 +95,21 @@ def main():
     train_parser.add_argument(
         "-l",
         type=str,
-        help="languages (separated by commas, default = all)",
+        help="languages (separated by commas, default = all)."
+             "Note that actual languages used is the intersection of this and the languages in the example",
         default="c"
     )
     train_parser.add_argument(
         "-n",
         type=int,
-        help="number of files to pass to model (default = all files)",
+        help="number of examples to pass to model (default = all)"
+             "Note that actual number of examples used is the minimum of this and the number of examples in the file",
         default=INT32_MAX
     )
     train_parser.add_argument(
         "--resume",
         action="store_true",
         help="resume training from the last checkpoint"
-    )
-    train_parser.add_argument(
-        "--use-cached-model-data",
-        action="store_true",
-        help="if present, instead of re-scraping the model data, use the cached version"
     )
     train_parser.set_defaults(func=train_cmd)
 
@@ -142,7 +139,7 @@ def main():
         "-m",
         type=Path,
         help="model directory",
-        default=PROJECT_PATH / "local/model"
+        default=DEFAULT_MODEL_PATH
     )
     transform_ir_parser.add_argument(
         "-l",
@@ -183,7 +180,7 @@ def main():
         "-m",
         type=Path,
         help="model directory",
-        default=PROJECT_PATH / "local/model"
+        default=DEFAULT_MODEL_PATH
     )
     transform_parser.add_argument(
         "-l",

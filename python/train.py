@@ -9,19 +9,17 @@ from transformers import TrainingArguments, Trainer
 from code_types import CODE_TYPES
 from dataset import ModelData, ModelDataset
 from model import get_model, get_tokenizer
-from utils import check_dir, mk_empty_dir
+from utils import mk_empty_dir
 
 
 def train(
-        dataset_dir: Path,
+        train_path: Path,
         eval_path_or_ratio: Path | float,
         model_dir: Path,
-        lang: str,
+        langs: str,
         count: int,
         force: bool,
-        resume: bool,
-        use_cached_model_data: bool):
-    check_dir(dataset_dir)
+        resume: bool):
     if resume:
         model_dir.mkdir(parents=True, exist_ok=True)
     else:
@@ -29,14 +27,11 @@ def train(
 
     tokenizer = get_tokenizer()
     model = get_model(model_dir)
-    cached_model_data_path = model_dir / "cached_model.dat"
     train_dataset, eval_dataset = get_datasets(
         tokenizer,
-        dataset_dir,
-        use_cached_model_data,
-        cached_model_data_path,
+        train_path,
         eval_path_or_ratio,
-        lang,
+        langs,
         count
     )
     do_eval = eval_dataset is not None
@@ -71,24 +66,23 @@ def train(
 
 def get_datasets(
         tokenizer,
-        dataset_dir: Path,
-        use_cached_model_data: bool,
-        cached_model_data_path: Path,
+        train_path: Path,
         eval_path_or_ratio: Path | float,
         langs: str,
         count: int) -> tuple[ModelDataset, ModelDataset | None]:
     code_types = [CODE_TYPES[lang] for lang in langs.split(",")]
-    if use_cached_model_data and cached_model_data_path.exists():
-        train_data = ModelData.load(cached_model_data_path)
-        assert train_data.code_types == code_types, "Cached model data has different code types"
-    else:
-        train_data = ModelData(code_types, count)
-        train_data.add_dir(dataset_dir)
-        train_data.save(cached_model_data_path)
+    if not train_path.exists():
+        raise ValueError(f"Train examples path {train_path} does not exist")
+    if isinstance(eval_path_or_ratio, Path) and not eval_path_or_ratio.exists():
+        raise ValueError(f"Evaluation examples path {eval_path_or_ratio} does not exist")
+    train_data = ModelData.load(train_path)
+    train_data.limit_code_types(code_types)
+    train_data.limit_count(count)
     eval_data: ModelData | None
     if isinstance(eval_path_or_ratio, Path):
-        eval_data = ModelData(code_types, count)
-        eval_data.add_dir(eval_path_or_ratio)
+        eval_data = ModelData.load(eval_path_or_ratio)
+        eval_data.limit_code_types(code_types)
+        eval_data.limit_count(count)
     elif eval_path_or_ratio != 0:
         eval_data = train_data.split_off_end(eval_path_or_ratio)
     else:

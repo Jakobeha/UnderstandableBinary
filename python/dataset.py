@@ -1,8 +1,8 @@
 import pickle
 from pathlib import Path
+from typing import BinaryIO
 
 from code_type import CodeType
-from log import log
 from model import tokenize
 from tokenizers import Tokenizer
 
@@ -10,20 +10,10 @@ import torch
 
 
 class ModelData:
-    def add_example(self, code_type: CodeType, source_path: Path, disassembled_path: Path):
-        if 0 < self.max_len <= len(self):
-            return
-        # need to read before appending in case there isn't an exception, so that these are aligned
-        examples = code_type.process_training(disassembled_path, source_path)
-        num_added = 0
-        for source_example, disassembled_example in examples:
-            self.paths.append(source_path)
-            self.sources.append(source_example)
-            self.disassembleds.append(disassembled_example)
-            num_added += 1
-        log.info(f"Added {num_added} examples from {str(source_path)}")
+    def add_artifact(self, code_types: list[CodeType], root_dir: Path):
+        """adds an artifact (self-contained directory of source and disassembled files)"""
+        dbs = {code_type: code_type.ExampleDb() for code_type in code_types}
 
-    def add_dir(self, root_dir: Path):
         def _add_item(path: Path):
             if 0 < self.max_len <= len(self):
                 return
@@ -31,56 +21,64 @@ class ModelData:
                 for child_path in path.rglob("*"):
                     _add_item(child_path)
                 return
-            for code_type in self.code_types:
+            for code_type in code_types:
                 if any(path.name.endswith(src_ext) for src_ext in code_type.source_extensions) and \
                         not any(path.name.endswith(dst_ext) for dst_ext in code_type.disassembled_extensions):
-                    base_path_name = next(path.name[:-len(src_ext)]
-                                          for src_ext in code_type.source_extensions
-                                          if path.name.endswith(src_ext))
-                    disassembled_paths = (
-                        path.with_name(base_path_name + dst_ext)
-                        for dst_ext in code_type.disassembled_extensions
-                    )
-                    for disassembled_path in disassembled_paths:
-                        if disassembled_path.exists():
-                            try:
-                                self.add_example(code_type, path, disassembled_path)
-                            except Exception as e:
-                                log.error(f"Failed to add {str(path)}: {e}")
-                            return
-                    else:
-                        log.debug(f"In-IR file {str(path)} exists but its corresponding out-IR does not")
-            # Fallback
-            log.debug(f"Ignored {str(path)}")
-
+                    dbs[code_type].add_input(path)
+                if any(path.name.endswith(dst_ext) for dst_ext in code_type.disassembled_extensions):
+                    dbs[code_type].add_output(path)
         _add_item(root_dir)
 
+        for code_type in code_types:
+            for source, disassembled in dbs[code_type].generate_examples():
+                if 0 < self.max_len <= len(self):
+                    return
+                self.source_disassembled_code_types.append(code_type)
+                self.sources.append(source)
+                self.disassembleds.append(disassembled)
+
     def split_off_end(self, interval: float):
-        split_index = int(len(self.sources) * interval)
-        rhs = ModelData(self.code_types)
-        rhs.paths = self.paths[split_index:]
+        split_index = int(len(self) * interval)
+        rhs = ModelData()
+        rhs.source_disassembled_code_types = self.source_disassembled_code_types[split_index:]
         rhs.sources = self.sources[split_index:]
         rhs.disassembleds = self.disassembleds[split_index:]
-        self.paths = self.paths[:split_index]
+        self.source_disassembled_code_types = self.source_disassembled_code_types[:split_index]
         self.sources = self.sources[:split_index]
         self.disassembleds = self.disassembleds[:split_index]
         return rhs
 
-    def __len__(self):
-        return len(self.paths)
+    def limit_code_types(self, code_types: list[CodeType]):
+        for i in range(len(self)):
+            if self.source_disassembled_code_types[i] not in code_types:
+                self.source_disassembled_code_types.pop(i)
+                self.sources.pop(i)
+                self.disassembleds.pop(i)
 
-    def __init__(self, code_types: list[CodeType], max_len: int = 0):
-        self.code_types = code_types
+    def limit_count(self, count: int):
+        self.source_disassembled_code_types = self.source_disassembled_code_types[:count]
+        self.sources = self.sources[:count]
+        self.disassembleds = self.disassembleds[:count]
+
+    def __len__(self):
+        return len(self.sources)
+
+    def __init__(self, max_len: int = 0):
         self.max_len = max_len
-        self.paths = []
+        self.source_disassembled_code_types = []
         self.sources = []
         self.disassembleds = []
 
     PICKLE_PROTOCOL = 5
 
-    def save(self, path: Path):
-        with path.open("wb") as file:
-            pickle.dump(self, file, protocol=self.PICKLE_PROTOCOL)
+    def save(self, path_or_file: Path | BinaryIO):
+        if isinstance(path_or_file, Path):
+            with path_or_file.open("wb") as file:
+                self.save(file)
+        elif isinstance(path_or_file, BinaryIO):
+            pickle.dump(self, path_or_file, protocol=self.PICKLE_PROTOCOL)
+        else:
+            raise TypeError("path_or_file must be a Path or BytesIO")
 
     @staticmethod
     def load(path: Path):

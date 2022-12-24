@@ -17,7 +17,6 @@ import ghidra.app.decompiler.flatapi.FlatDecompilerAPI;
 import ghidra.app.script.GhidraScript;
 import ghidra.app.services.ConsoleService;
 import ghidra.app.util.importer.*;
-import ghidra.app.util.opinion.LoaderService;
 import ghidra.framework.model.DomainFile;
 import ghidra.framework.model.DomainFolder;
 import ghidra.framework.model.Project;
@@ -98,10 +97,10 @@ public class BatchDecompile extends GhidraScript {
         var numDecompiled = new AtomicInteger(0);
         for (var importedPath : importedPaths) {
             var binaryPath = importedPath.binaryPath;
-            var programs = importedPath.programs;
+            var program = importedPath.program;
             var disassembledPath = getDisassembledPath(binaryPath);
             try {
-                this.decompile(binaryPath, programs, disassembledPath, decompileExistingFiles, numToDecompile, numDecompiled);
+                this.decompile(binaryPath, program, disassembledPath, decompileExistingFiles, numToDecompile, numDecompiled);
             } catch (Exception e) {
                 this.logError("Error decompiling " + binaryPath, e);
             }
@@ -120,7 +119,7 @@ public class BatchDecompile extends GhidraScript {
             if (programFile != null) {
                 this.logInfo("Loading serialized imported %s", binaryPath);
                 var program = (Program) programFile.getDomainObject(this, false, false, monitor);
-                return new ImportedPath(binaryPath, List.of(program));
+                return new ImportedPath(binaryPath, program);
             }
         }
         var progress = (float)numImported.get() / (float)numToImport * 100f;
@@ -129,30 +128,27 @@ public class BatchDecompile extends GhidraScript {
         this.logInfo( "** IMPORTING %s... (%d/%d aka %.02f%% of phase 1/2)", binaryPath, index, numToImport, progress);
         numImported.incrementAndGet();
         var createSerialDomainFile = this.prepareCreateSerialDomainFile(binaryPath, project);
-        var programs = AutoImporter.importFresh(
+        var existingFile = createSerialDomainFile.parent.getFile(createSerialDomainFile.name);
+        if (existingFile != null) {
+            existingFile.delete();
+        }
+        var program = AutoImporter.importByUsingBestGuess(
                 binaryPath.toFile(),
                 createSerialDomainFile.parent,
                 this,
                 new MessageLog(),
-                monitor,
-                LoaderService.ACCEPT_ALL, LoadSpecChooser.CHOOSE_THE_FIRST_PREFERRED, null,
-                OptionChooser.DEFAULT_OPTIONS, MultipleProgramsStrategy.ALL_PROGRAMS);
-        if (programs.size() == 1) {
-            var program = programs.get(0);
-            var existingFile = createSerialDomainFile.parent.getFile(createSerialDomainFile.name);
-            if (existingFile != null) {
-                existingFile.delete();
-            }
+                monitor);
+        existingFile = createSerialDomainFile.parent.getFile(createSerialDomainFile.name);
+        if (existingFile != null) {
+            // Seems like AutoImporter automatically saves the file, but just to make sure...
             createSerialDomainFile.parent.createFile(createSerialDomainFile.name, program, monitor);
-        } else {
-            this.logWarn("%d programs found at one location: %s (we can't cache these because multiple programs is only partially supported)", programs.size(), binaryPath);
         }
-        return new ImportedPath(binaryPath, programs);
+        return new ImportedPath(binaryPath, program);
     }
 
     private void decompile(
             Path binaryPath,
-            List<Program> programs,
+            Program program,
             Path disassembledPath,
             boolean decompileExistingFiles,
             int numToDecompile,
@@ -170,53 +166,47 @@ public class BatchDecompile extends GhidraScript {
         Files.createFile(disassembledPath);
 
         this.logInfo("** ANALYZING %s... (%d/%d aka %.02f%% of phase 2/2)", binaryPath, index, numToDecompile, progress);
-        for (var program : programs) {
-            var transaction = program.startTransaction("BatchDecompile analyze");
-            try {
-                // Analysis takes a lot of memory
-                System.gc();
-                this.analyzeAll(program);
-                program.endTransaction(transaction, true);
+        var transaction = program.startTransaction("BatchDecompile analyze");
+        try {
+            // Analysis takes a lot of memory
+            System.gc();
+            this.analyzeAll(program);
+            program.endTransaction(transaction, true);
 
-                // Save analysis
-                if (programs.size() == 1) {
-                    program.save("Analyzed", monitor);
-                }
-            } catch (Throwable exception) {
-                program.endTransaction(transaction, false);
-                throw exception;
-            }
+            // Save analysis
+            program.save("Analyzed", monitor);
+        } catch (Throwable exception) {
+            program.endTransaction(transaction, false);
+            throw exception;
         }
 
         this.logInfo( "** DECOMPILING %s... (%d.5/%d aka %.02f%% of phase 2/2)", binaryPath, index, numToDecompile, progress + (0.5f / (float)numToDecompile * 100f));
-        for (var program : programs) {
-            var firstLog = true;
-            currentProgram = program;
-            var decompiler = new FlatDecompilerAPI(this);
-            try {
-                for (var func : program.getFunctionManager().getFunctions(true)) {
-                    if (!func.isExternal()) {
-                        try {
-                            var disassembled = decompiler.decompile(func);
-                            if (disassembled.contains("Truncating control flow here")) {
-                                this.logWarn("Bad decompile: " + binaryPath.getFileName() + " function " + func.getName());
-                            } else {
-                                Files.writeString(disassembledPath, "// FUNCTION " + func.getName(), StandardOpenOption.APPEND);
-                                Files.writeString(disassembledPath, disassembled, StandardOpenOption.APPEND);
-                            }
-                        } catch (Exception e) {
-                            if (firstLog) {
-                                // I have no idea how to check these functions
-                                this.logError("Error decompiling " + binaryPath.getFileName() + " function " + func.getName(), e);
-                                firstLog = false;
-                            }
+        var firstLog = true;
+        currentProgram = program;
+        var decompiler = new FlatDecompilerAPI(this);
+        try {
+            for (var func : program.getFunctionManager().getFunctions(true)) {
+                if (!func.isExternal()) {
+                    try {
+                        var disassembled = decompiler.decompile(func);
+                        if (disassembled.contains("Truncating control flow here")) {
+                            this.logWarn("Bad decompile: " + binaryPath.getFileName() + " function " + func.getName());
+                        } else {
+                            Files.writeString(disassembledPath, "// FUNCTION " + func.getName(), StandardOpenOption.APPEND);
+                            Files.writeString(disassembledPath, disassembled, StandardOpenOption.APPEND);
+                        }
+                    } catch (Exception e) {
+                        if (firstLog) {
+                            // I have no idea how to check these functions
+                            this.logError("Error decompiling " + binaryPath.getFileName() + " function " + func.getName(), e);
+                            firstLog = false;
                         }
                     }
                 }
-            } finally {
-                decompiler.dispose();
-                program.release(this);
             }
+        } finally {
+            decompiler.dispose();
+            program.release(this);
         }
     }
 
@@ -225,8 +215,8 @@ public class BatchDecompile extends GhidraScript {
     // We want to return the relative path *inside* of the ghidra.rep folder,
     // so that ghidra.rep has an "equivalent file system hierarchy" where each object file corresponds to ghidra program data
     private String _getRelativeSerialPath(Path binaryPath, Project project) {
-        var binaryPathWithDifferentExtension = binaryPath.getParent().resolve(binaryPath.getFileName().toString() + ".ghidra").toAbsolutePath().normalize();
-        var path = getProjectPath(project).relativize(binaryPathWithDifferentExtension).toString();
+        binaryPath = binaryPath.toAbsolutePath().normalize();
+        var path = getProjectPath(project).relativize(binaryPath).toString();
         assert path.startsWith("../");
         return "filetree" + path.substring(2);
     }
@@ -290,7 +280,7 @@ public class BatchDecompile extends GhidraScript {
         }
     }
 
-    private record ImportedPath(Path binaryPath, List<Program> programs) {}
+    private record ImportedPath(Path binaryPath, Program program) {}
 
     private record CreatingSerialDomainFile(DomainFolder parent, String name) {}
 }

@@ -1,10 +1,13 @@
 from pathlib import Path
 import shutil
-from typing import Iterable, Tuple, TypeVar
+from typing import Iterable, Tuple, TypeVar, BinaryIO
 
 T = TypeVar('T')
 
 PROJECT_PATH = Path(__file__).parent.parent
+DEFAULT_DATASET_PATH = PROJECT_PATH.parent / "UnderstandableBinary-dataset"
+DEFAULT_EXAMPLES_PATH = PROJECT_PATH.parent / "UnderstandableBinary-examples.pickle"
+DEFAULT_MODEL_PATH = PROJECT_PATH.parent / "UnderstandableBinary-model"
 
 INT32_MAX = 2_147_483_647  # 2^31 - 1
 
@@ -33,6 +36,16 @@ def mk_empty_dir(path: Path, force: bool):
         else:
             raise ValueError(f"Path {path} already exists")
     path.mkdir(parents=True)
+
+
+def mk_empty_binary_file(path: Path, force: bool) -> BinaryIO:
+    """create an empty binary file open for writing at path. If force, will rm if existing"""
+    if path.exists():
+        if force:
+            path.unlink()
+        else:
+            raise ValueError(f"Path {path} already exists")
+    return path.open("wb")
 
 
 def chunk2(iterable: Iterable[T]) -> Iterable[Tuple[T, T]]:
