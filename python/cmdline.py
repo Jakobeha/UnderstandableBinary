@@ -1,4 +1,6 @@
 from pathlib import Path
+
+from code_types import ALL_LANGS
 from generate import generate
 from train import train
 from transform_ir import transform_ir
@@ -53,7 +55,7 @@ def main():
         "-l",
         type=str,
         help="languages (separated by commas, default = all)",
-        default="c"
+        default=ALL_LANGS
     )
     generate_parser.add_argument(
         "-n",
@@ -97,7 +99,7 @@ def main():
         type=str,
         help="languages (separated by commas, default = all)."
              "Note that actual languages used is the intersection of this and the languages in the example",
-        default="c"
+        default=ALL_LANGS
     )
     train_parser.add_argument(
         "-n",
@@ -145,7 +147,7 @@ def main():
         "-l",
         type=str,
         help="languages (separated by commas, default = all)",
-        default="c"
+        default=ALL_LANGS
     )
     transform_ir_parser.add_argument(
         "-n",
@@ -186,7 +188,7 @@ def main():
         "-l",
         type=str,
         help="languages (separated by commas, default = all)",
-        default="c"
+        default=ALL_LANGS
     )
     transform_parser.add_argument(
         "-n",

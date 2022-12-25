@@ -1,41 +1,66 @@
 import pickle
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Dict
 
-from code_type import CodeType
+from code_type import CodeType, ExampleDb
+from log import log, logging_progress_bar
 from model import tokenize
 from tokenizers import Tokenizer
 
 import torch
 
+from utils import Reference
+
 
 class ModelData:
     def add_artifact(self, code_types: list[CodeType], root_dir: Path):
+        if not root_dir.exists():
+            raise ValueError(f"artifact dir {root_dir} does not exist")
+
         """adds an artifact (self-contained directory of source and disassembled files)"""
-        dbs = {code_type: code_type.ExampleDb() for code_type in code_types}
+        dbs: Dict[CodeType, ExampleDb] = {code_type: code_type.ExampleDb() for code_type in code_types}
+        total_num_expected_source_examples = Reference(0)
+        total_num_expected_disassembled_examples = Reference(0)
 
-        def _add_item(path: Path):
-            if 0 < self.max_len <= len(self):
-                return
-            if path.is_dir():
-                for child_path in path.rglob("*"):
-                    _add_item(child_path)
-                return
-            for code_type in code_types:
-                if any(path.name.endswith(src_ext) for src_ext in code_type.source_extensions) and \
-                        not any(path.name.endswith(dst_ext) for dst_ext in code_type.disassembled_extensions):
-                    dbs[code_type].add_input(path)
-                if any(path.name.endswith(dst_ext) for dst_ext in code_type.disassembled_extensions):
-                    dbs[code_type].add_output(path)
-        _add_item(root_dir)
+        log.info(f"adding artifact {str(root_dir)}")
+        with logging_progress_bar(total=self.max_len, position=0, leave=False) as source_pbar:
+            with logging_progress_bar(total=self.max_len, position=1, leave=False) as disassembled_pbar:
+                def _add_item(path: Path):
+                    if 0 < self.max_len <= min(
+                            total_num_expected_source_examples.value,
+                            total_num_expected_disassembled_examples.value):
+                        log.info("** max_len reached, not adding any more examples")
+                        return
+                    if path.is_dir():
+                        for child_path in path.rglob("*"):
+                            _add_item(child_path)
+                        return
+                    for code_type in code_types:
+                        if not (0 < self.max_len <= total_num_expected_source_examples.value) and \
+                                any(path.name.endswith(src_ext) for src_ext in code_type.source_extensions) and \
+                                not any(path.name.endswith(dst_ext) for dst_ext in code_type.disassembled_extensions):
+                            new_source_examples = dbs[code_type].add_source(path)
+                            source_pbar.update(new_source_examples)
+                            total_num_expected_source_examples.value += new_source_examples
+                        if not (0 < self.max_len <= total_num_expected_disassembled_examples.value) and \
+                                any(path.name.endswith(dst_ext) for dst_ext in code_type.disassembled_extensions):
+                            new_disassembled_examples = dbs[code_type].add_disassembled(path)
+                            disassembled_pbar.update(new_disassembled_examples)
+                            total_num_expected_disassembled_examples.value += new_disassembled_examples
+                _add_item(root_dir)
 
-        for code_type in code_types:
-            for source, disassembled in dbs[code_type].generate_examples():
-                if 0 < self.max_len <= len(self):
-                    return
+        # Add all examples, but
+        # - don't add more than max_len
+        # - add examples from each language in a round-robin fashion
+        # - print the number of examples we added of each language
+        for code_type, db in dbs.items():
+            num_examples_added = 0
+            for source, disassembled in db.build_examples():
                 self.source_disassembled_code_types.append(code_type)
                 self.sources.append(source)
                 self.disassembleds.append(disassembled)
+                num_examples_added += 1
+            log.info(f"** {code_type} - {num_examples_added} examples")
 
     def split_off_end(self, interval: float):
         split_index = int(len(self) * interval)
@@ -75,10 +100,8 @@ class ModelData:
         if isinstance(path_or_file, Path):
             with path_or_file.open("wb") as file:
                 self.save(file)
-        elif isinstance(path_or_file, BinaryIO):
-            pickle.dump(self, path_or_file, protocol=self.PICKLE_PROTOCOL)
         else:
-            raise TypeError("path_or_file must be a Path or BytesIO")
+            pickle.dump(self, path_or_file, protocol=self.PICKLE_PROTOCOL)
 
     @staticmethod
     def load(path: Path):

@@ -126,7 +126,6 @@ public class BatchDecompile extends GhidraScript {
         var index = numImported.incrementAndGet();
 
         this.logInfo( "** IMPORTING %s... (%d/%d aka %.02f%% of phase 1/2)", binaryPath, index, numToImport, progress);
-        numImported.incrementAndGet();
         var createSerialDomainFile = this.prepareCreateSerialDomainFile(binaryPath, project);
         var existingFile = createSerialDomainFile.parent.getFile(createSerialDomainFile.name);
         if (existingFile != null) {
@@ -138,11 +137,8 @@ public class BatchDecompile extends GhidraScript {
                 this,
                 new MessageLog(),
                 monitor);
-        existingFile = createSerialDomainFile.parent.getFile(createSerialDomainFile.name);
-        if (existingFile != null) {
-            // Seems like AutoImporter automatically saves the file, but just to make sure...
-            createSerialDomainFile.parent.createFile(createSerialDomainFile.name, program, monitor);
-        }
+        // AutoImporter automatically saves the file so we don't need to explicitly create it
+        // (might not need to delete existing either but we do so just to be safe)
         return new ImportedPath(binaryPath, program);
     }
 
@@ -186,21 +182,19 @@ public class BatchDecompile extends GhidraScript {
         var decompiler = new FlatDecompilerAPI(this);
         try {
             for (var func : program.getFunctionManager().getFunctions(true)) {
-                if (!func.isExternal()) {
-                    try {
-                        var disassembled = decompiler.decompile(func);
-                        if (disassembled.contains("Truncating control flow here")) {
-                            this.logWarn("Bad decompile: " + binaryPath.getFileName() + " function " + func.getName());
-                        } else {
-                            Files.writeString(disassembledPath, "// FUNCTION " + func.getName(), StandardOpenOption.APPEND);
-                            Files.writeString(disassembledPath, disassembled, StandardOpenOption.APPEND);
-                        }
-                    } catch (Exception e) {
-                        if (firstLog) {
-                            // I have no idea how to check these functions
-                            this.logError("Error decompiling " + binaryPath.getFileName() + " function " + func.getName(), e);
-                            firstLog = false;
-                        }
+                try {
+                    var disassembled = decompiler.decompile(func);
+                    if (disassembled.contains("Truncating control flow here")) {
+                        this.logWarn("Bad decompile: " + binaryPath.getFileName() + " function " + func.getName(true));
+                    } else {
+                        Files.writeString(disassembledPath, "// FUNCTION " + func.getName(), StandardOpenOption.APPEND);
+                        Files.writeString(disassembledPath, disassembled, StandardOpenOption.APPEND);
+                    }
+                } catch (Exception e) {
+                    if (firstLog) {
+                        // I have no idea how to check these functions
+                        this.logError("Error decompiling " + binaryPath.getFileName() + " function " + func.getName(), e);
+                        firstLog = false;
                     }
                 }
             }

@@ -4,3 +4,6 @@ CODE_TYPES = {
     "c": CCodeType(),
     "cpp": CppCodeType()
 }
+
+
+ALL_LANGS = "cpp"

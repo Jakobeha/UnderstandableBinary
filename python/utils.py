@@ -1,11 +1,11 @@
 from pathlib import Path
 import shutil
-from typing import Iterable, Tuple, TypeVar, BinaryIO
+from typing import Iterable, Tuple, TypeVar, BinaryIO, Generic
 
 T = TypeVar('T')
 
 PROJECT_PATH = Path(__file__).parent.parent
-DEFAULT_DATASET_PATH = PROJECT_PATH.parent / "UnderstandableBinary-dataset"
+DEFAULT_DATASET_PATH = PROJECT_PATH.parent / "UnderstandableBinary-data"
 DEFAULT_EXAMPLES_PATH = PROJECT_PATH.parent / "UnderstandableBinary-examples.pickle"
 DEFAULT_MODEL_PATH = PROJECT_PATH.parent / "UnderstandableBinary-model"
 
@@ -56,3 +56,8 @@ def chunk2(iterable: Iterable[T]) -> Iterable[Tuple[T, T]]:
             yield next(it), next(it)
         except StopIteration:
             return
+
+
+class Reference(Generic[T]):
+    def __init__(self, value: T):
+        self.value = value

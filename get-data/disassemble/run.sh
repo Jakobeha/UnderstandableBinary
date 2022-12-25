@@ -75,12 +75,18 @@ function preprocess_a() {
     # Idk why this happens
     return
   fi
-  if [ -d "$apath.extracted" ] && [ "$IMPORT_EXISTING_FILES" == "false" ] ; then
-    echo "** SKIPPING $apath (already extracted)"
-    return
+  if [ -d "$apath.extracted" ] ; then
+    if [ "$IMPORT_EXISTING_FILES" == "false" ] ; then
+      echo "** SKIPPING $apath (already extracted)"
+      return
+    else
+      # Safe removal since we know its only 1 level deep
+      rm "$apath.extracted/*"
+      rmdir "$apath.extracted"
+    fi
   fi
   echo "** EXTRACTING $apath"
-  mkdir -p "$apath.extracted"
+  mkdir "$apath.extracted"
   cd "$apath.extracted" && ar -x "../$(basename "$apath")"
 }
 export IMPORT_EXISTING_FILES
