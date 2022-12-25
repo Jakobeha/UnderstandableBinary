@@ -32,7 +32,7 @@ class _CExampleDb(ExampleDb):
         try:
             source_text, source = _parse_source(path)
             for node in source.cursor.walk_preorder():
-                if node.is_definition() and node.kind in FUNCTION_KINDS:
+                if node.kind in FUNCTION_KINDS:
                     node_text = _node_text(path, source_text, node)
                     if node_text is not None:
                         function_id = self._get_function_id(path, node.spelling)
@@ -67,16 +67,14 @@ class _CExampleDb(ExampleDb):
     def build_examples(self) -> Iterator[Tuple[ModelStr, ModelStr]]:
         missing_sources = set()
         missing_disassembleds = set()
-        for function_id, dissassembled_function in self.disassembled_functions.items():
+        for function_id, disassembled_function in self.disassembled_functions.items():
             if function_id not in self.source_functions:
                 missing_sources.add(function_id)
                 continue
-            source_function = self.source_functions[function_id]
-            yield ModelStr(source_function), ModelStr(dissassembled_function)
+            source_function = self.source_functions.pop(function_id)
+            yield ModelStr(source_function), ModelStr(disassembled_function)
         for function_id, source_function in self.source_functions.items():
-            if function_id not in self.disassembled_functions:
-                missing_disassembleds.add(function_id)
-                continue
+            missing_disassembleds.add(function_id)
         if len(missing_sources) > 0:
             log.warning(f"Missing sources for {len(missing_sources)} functions:\n\t" +
                         (" ".join(islice(missing_sources, 100)) + "..." if len(missing_sources) > 100
@@ -112,7 +110,7 @@ class _CCodeType(CodeType):
         for node in disassembled_source.cursor.get_children():
             node_text = _node_text(disassembled_path, disassembled_text, node)
             if node_text is not None:
-                if node.is_definition() and node.kind in FUNCTION_KINDS:
+                if node.kind in FUNCTION_KINDS:
                     yield TransformStr.regular(node_text)
                 else:
                     yield TransformStr.pass_through(node_text)

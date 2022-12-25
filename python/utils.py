@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import shutil
 from typing import Iterable, Tuple, TypeVar, BinaryIO, Generic
@@ -18,6 +19,13 @@ def path_or_float(arg) -> Path | float:
         return float(arg)
     except ValueError:
         return Path(arg)
+
+
+def walk_files(root_dir: Path) -> Iterable[Path]:
+    """Walk a directory, yielding paths to all files"""
+    for dir, _, filenames in os.walk(root_dir):
+        for filename in filenames:
+            yield Path(dir, filename)
 
 
 def check_dir(path: Path):

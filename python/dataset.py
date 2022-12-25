@@ -9,45 +9,55 @@ from tokenizers import Tokenizer
 
 import torch
 
-from utils import Reference
+from utils import walk_files
 
 
 class ModelData:
     def add_artifact(self, code_types: list[CodeType], root_dir: Path):
+        """adds an artifact (self-contained directory of source and disassembled files)"""
         if not root_dir.exists():
             raise ValueError(f"artifact dir {root_dir} does not exist")
 
-        """adds an artifact (self-contained directory of source and disassembled files)"""
+        log.info(f"calculating size of artifact {str(root_dir)}")
+        num_source_files = 0
+        num_disassembled_files = 0
+        for file in walk_files(root_dir):
+            for code_type in code_types:
+                if any(file.name.endswith(extension) for extension in code_type.disassembled_extensions):
+                    num_disassembled_files += 1
+                elif any(file.name.endswith(extension) for extension in code_type.source_extensions):
+                    num_source_files += 1
+
         dbs: Dict[CodeType, ExampleDb] = {code_type: code_type.ExampleDb() for code_type in code_types}
-        total_num_expected_source_examples = Reference(0)
-        total_num_expected_disassembled_examples = Reference(0)
+        num_processed_source_examples = 0
+        num_processed_disassembled_examples = 0
 
         log.info(f"adding artifact {str(root_dir)}")
-        with logging_progress_bar(total=self.max_len, position=0, leave=False) as source_pbar:
-            with logging_progress_bar(total=self.max_len, position=1, leave=False) as disassembled_pbar:
-                def _add_item(path: Path):
-                    if 0 < self.max_len <= min(
-                            total_num_expected_source_examples.value,
-                            total_num_expected_disassembled_examples.value):
-                        log.info("** max_len reached, not adding any more examples")
-                        return
-                    if path.is_dir():
-                        for child_path in path.rglob("*"):
-                            _add_item(child_path)
-                        return
-                    for code_type in code_types:
-                        if not (0 < self.max_len <= total_num_expected_source_examples.value) and \
-                                any(path.name.endswith(src_ext) for src_ext in code_type.source_extensions) and \
-                                not any(path.name.endswith(dst_ext) for dst_ext in code_type.disassembled_extensions):
-                            new_source_examples = dbs[code_type].add_source(path)
-                            source_pbar.update(new_source_examples)
-                            total_num_expected_source_examples.value += new_source_examples
-                        if not (0 < self.max_len <= total_num_expected_disassembled_examples.value) and \
-                                any(path.name.endswith(dst_ext) for dst_ext in code_type.disassembled_extensions):
-                            new_disassembled_examples = dbs[code_type].add_disassembled(path)
-                            disassembled_pbar.update(new_disassembled_examples)
-                            total_num_expected_disassembled_examples.value += new_disassembled_examples
-                _add_item(root_dir)
+        with logging_progress_bar(total=num_source_files, position=0, leave=False) as source_files_pbar:
+            with logging_progress_bar(total=num_disassembled_files, position=1, leave=False) as disassembled_files_pbar:
+                with logging_progress_bar(total=self.max_len, position=2, leave=False) as source_examples_pbar:
+                    with logging_progress_bar(total=self.max_len, position=3, leave=False) as \
+                            disassembled_examples_pbar:
+                        for file in walk_files(root_dir):
+                            if 0 < self.max_len <= min(
+                                    num_processed_disassembled_examples,
+                                    num_processed_disassembled_examples):
+                                log.info("** max_len reached, not adding any more examples")
+                                break
+                            for code_type in code_types:
+                                if not (0 < self.max_len <= num_processed_source_examples) and \
+                                        any(file.name.endswith(e) for e in code_type.source_extensions) and \
+                                        not any(file.name.endswith(e) for e in code_type.disassembled_extensions):
+                                    new_source_examples = dbs[code_type].add_source(file)
+                                    num_processed_source_examples += new_source_examples
+                                    source_files_pbar.update(1)
+                                    source_examples_pbar.update(new_source_examples)
+                                if not (0 < self.max_len <= num_processed_disassembled_examples) and \
+                                        any(file.name.endswith(e) for e in code_type.disassembled_extensions):
+                                    new_disassembled_examples = dbs[code_type].add_disassembled(file)
+                                    num_processed_disassembled_examples += new_disassembled_examples
+                                    disassembled_files_pbar.update(1)
+                                    disassembled_examples_pbar.update(new_disassembled_examples)
 
         # Add all examples, but
         # - don't add more than max_len
