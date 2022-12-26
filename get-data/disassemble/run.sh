@@ -62,6 +62,10 @@ if [ ! -d "$GHIDRA_DIR" ]; then
     tar -xzf "$GHIDRA_DIR.tar.gz" -C "$GHIDRA_DIR"
 fi
 
+# Patch analyzeHeadless, increase heap size
+# (do this even if already done just to be safe and not cause confusing errors)
+sed -i 's/^MAXMEM=.*$/MAXMEM=6G/g' "$GHIDRA_DIR/support/analyzeHeadless"
+
 # Create script log dir if necessary
 if [ "$SCRIPT_LOG_DIR" != "" ]; then
   mkdir -p "$SCRIPT_LOG_DIR"
