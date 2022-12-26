@@ -88,11 +88,14 @@ class ModelData:
         return rhs
 
     def limit_code_types(self, code_types: list[CodeType]):
-        for i in range(len(self)):
+        i = 0
+        while i < len(self):
             if self.source_disassembled_code_types[i] not in code_types:
                 self.source_disassembled_code_types.pop(i)
                 self.sources.pop(i)
                 self.disassembleds.pop(i)
+            else:
+                i += 1
 
     def limit_count(self, count: int):
         self.source_disassembled_code_types = self.source_disassembled_code_types[:count]

@@ -57,3 +57,14 @@ class CodeType(ABC):
     @abstractmethod
     def process_disassembled(self, input_path: Path) -> Iterator[TransformStr]:
         raise NotImplementedError("abstract")
+
+    @abstractmethod
+    def __str__(self):
+        raise NotImplementedError("abstract")
+
+    def __eq__(self, other):
+        return str(self) == str(other)
+
+    def __hash__(self):
+        return hash(str(self))
+
