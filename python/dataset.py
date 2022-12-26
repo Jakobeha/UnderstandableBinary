@@ -33,11 +33,15 @@ class ModelData:
         num_processed_disassembled_examples = 0
 
         log.info(f"adding artifact {str(root_dir)}")
-        with logging_progress_bar(total=num_source_files, position=0, leave=False) as source_files_pbar:
-            with logging_progress_bar(total=num_disassembled_files, position=1, leave=False) as disassembled_files_pbar:
-                with logging_progress_bar(total=self.max_len, position=2, leave=False) as source_examples_pbar:
-                    with logging_progress_bar(total=self.max_len, position=3, leave=False) as \
-                            disassembled_examples_pbar:
+        # descriptions have trailing spaces to align the progress bars
+        with logging_progress_bar(desc="source-files         ", total=num_source_files, position=0,
+                                  leave=False) as source_files_pbar:
+            with logging_progress_bar(desc="disassembled-files   ", total=num_disassembled_files, position=1,
+                                      leave=False) as disassembled_files_pbar:
+                with logging_progress_bar(desc="source-examples      ", total=self.max_len, position=2,
+                                          leave=False) as source_examples_pbar:
+                    with logging_progress_bar(desc="disassembled-examples", total=self.max_len, position=3,
+                                              leave=False) as disassembled_examples_pbar:
                         for file in walk_files(root_dir):
                             if 0 < self.max_len <= min(
                                     num_processed_disassembled_examples,

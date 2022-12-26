@@ -6,7 +6,7 @@ from typing import Optional, Iterable
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from utils import T
+from utils import T, INT32_MAX
 
 # Extra verbose log level
 EXTRA_VERBOSE = 5
@@ -54,10 +54,13 @@ def logging_progress(
     if logger.level > level:
         return iterator
     else:
-        if desc is not None:
-            log.log(level, desc)
         with logging_redirect_tqdm(loggers=[logger], tqdm_class=tqdm):
-            for item in tqdm(iterator, position=position, leave=leave, total=total):
+            for item in tqdm(
+                    iterator,
+                    desc=desc,
+                    position=position,
+                    leave=leave,
+                    total=total if total != INT32_MAX else None):
                 yield item
 
 
@@ -75,11 +78,9 @@ def logging_progress_bar(
     if logger.level > level:
         return WithLoggingPbar(None, None)
     else:
-        if desc is not None:
-            log.log(level, desc)
         return WithLoggingPbar(
             logging_redirect_tqdm(loggers=[logger], tqdm_class=tqdm),
-            tqdm(position=position, leave=leave, total=total)
+            tqdm(desc=desc, position=position, leave=leave, total=total if total != INT32_MAX else None)
         )
 
 

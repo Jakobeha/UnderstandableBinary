@@ -36,8 +36,9 @@ class _CExampleDb(ExampleDb):
                     node_text = _node_text(path, source_text, node)
                     if node_text is not None:
                         function_id = self._get_function_id(path, node.spelling)
+                        if function_id not in self.source_functions:
+                            num_examples_added += 1
                         self.source_functions[function_id] = node_text
-                        num_examples_added += 1
                     else:
                         log.warning(f"Failed to get text for {node.spelling} in {path}")
         except Exception as e:
@@ -59,10 +60,13 @@ class _CExampleDb(ExampleDb):
             log.warning(f"Bad disassembled data format in {path} ({len(disassembled_components)} components):\n" +
                         "\n---\n".join(disassembled_components))
             return 0
+        num_examples_added = 0
         for function_name, function_data in chunk2(disassembled_components[1:]):
             function_id = self._get_function_id(path, function_name)
+            if function_id not in self.disassembled_functions:
+                num_examples_added += 1
             self.disassembled_functions[function_id] = function_data
-        return (len(disassembled_components) - 1) // 2
+        return num_examples_added
 
     def build_examples(self) -> Iterator[Tuple[ModelStr, ModelStr]]:
         missing_sources = set()
@@ -76,11 +80,11 @@ class _CExampleDb(ExampleDb):
         for function_id, source_function in self.source_functions.items():
             missing_disassembleds.add(function_id)
         if len(missing_sources) > 0:
-            log.warning(f"Missing sources for {len(missing_sources)} functions:\n\t" +
+            log.warning(f"Missing sources for {len(missing_sources)} disassembled functions:\n\t" +
                         (" ".join(islice(missing_sources, 100)) + "..." if len(missing_sources) > 100
                          else " ".join(missing_sources)))
         if len(missing_disassembleds) > 0:
-            log.warning(f"Missing disassembleds for {len(missing_disassembleds)} functions:\n\t" +
+            log.warning(f"Missing disassembleds for {len(missing_disassembleds)} source functions:\n\t" +
                         (" ".join(islice(missing_disassembleds, 100)) + "..." if len(missing_disassembleds) > 100
                          else " ".join(missing_disassembleds)))
 
