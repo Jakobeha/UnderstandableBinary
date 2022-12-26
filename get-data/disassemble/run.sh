@@ -9,11 +9,13 @@ GHIDRA_SCRIPT_NAME="BatchDecompile.java"
 # Ghidra uses 'false' and 'true' instead of '0' and '1'
 IMPORT_EXISTING_FILES=false
 DECOMPILE_EXISTING_FILES=false
+SKIP_SUCCESSES=true
+SKIP_FAILURES=false
 STATS_DIR=""
 
 # Show help if necessary
 function show_help() {
-  usage="Usage: $0 [-o DATASET_DIR] [-w STATS_DIR] [-l SCRIPT_LOG_DIR] [-j NUM_INSTANCES] [-f] [-F]
+  usage="Usage: $0 [-o DATASET_DIR] [-w STATS_DIR] [-l SCRIPT_LOG_DIR] [-j NUM_INSTANCES] [-s | -f | -F]
 
 Disassemble object files (.o) in DATASET_DIR using Ghidra, creating (.o.c) files and also Ghidra projects.
 DATASET_DIR should contain subdirectories containing artifacts; each artifact is processed separately.
@@ -25,14 +27,17 @@ DATASET_DIR should contain subdirectories containing artifacts; each artifact is
                       else skipping unless the file actually needs to be decompiled. Default: \"\" (no watch mode)
     -l SCRIPT_LOG_DIR Directory where the script logs are stored. Default: $PARENT_DIR/../../local/ghidra-logs
     -j NUM_INSTANCES  Number of processes to run in parallel, 0 for as many as possible. Default: 1
-    -f                Decompile existing files but DO NOT reimport and reanalyze cached Ghidra files. Default: false
-    -F                Decompile existing files and DO reimport and reanalyze cached Ghidra files. Default: false"
+    -s                Skip decompiling failures as well as successes (successes skipped unless -f or -F). Default: false
+    -f                Decompile existing files and redo successes but DO NOT reimport and reanalyze cached Ghidra files.
+                      Default: false
+    -F                Decompile existing files, redo successes, and DO reimport and reanalyze cached Ghidra files.
+                      Default: false"
   echo "$usage"
 }
 
 # Process options
 OPTIND=1
-while getopts "h?o:w:l:j:fF" opt; do
+while getopts "h?o:w:l:j:sfF" opt; do
   case "$opt" in
     h|\?)
       show_help
@@ -46,10 +51,14 @@ while getopts "h?o:w:l:j:fF" opt; do
       ;;
     j)  NUM_INSTANCES=$OPTARG
       ;;
+    s)  SKIP_FAILURES=true
+      ;;
     f)  DECOMPILE_EXISTING_FILES=true
+        SKIP_SUCCESSES=false
       ;;
     F)  IMPORT_EXISTING_FILES=true
         DECOMPILE_EXISTING_FILES=true
+        SKIP_SUCCESSES=false
       ;;
   esac
 done
@@ -101,6 +110,14 @@ find "$DATASET_DIR" -name "*.a" -print0 | xargs -0 -n 1 -P "$NUM_INSTANCES" -I {
 function process_one() {
   artifactDir=$1
 
+  if [ "$SKIP_SUCCESSES" == true ] && [ -f "$artifactDir/ghidra.success" ] ; then
+    echo "*** SKIPPING $artifactDir (previously processed)"
+    return
+  elif [ "$SKIP_FAILURES" == true ] && [ -f "$artifactDir/ghidra.fail" ] ; then
+    echo "*** SKIPPING $artifactDir (previously failed)"
+    return
+  fi
+
   echo "*** PROCESSING $artifactDir..."
 
   artifactName=$(basename "$artifactDir")
@@ -123,6 +140,10 @@ function process_one() {
     exit 1
   elif [ $exit -ne 0 ]; then
     echo "*** ERROR: Decompiling $artifactDir exited with code $exit"
+    touch "$artifactDir/ghidra.fail"
+  else
+    echo "*** SUCCESS decompiling $artifactDir!"
+    touch "$artifactDir/ghidra.success"
   fi
 }
 export GHIDRA_DIR
