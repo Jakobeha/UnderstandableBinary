@@ -73,7 +73,7 @@ fi
 
 # Patch analyzeHeadless, increase heap size
 # (do this even if already done just to be safe and not cause confusing errors)
-sed -i 's/^MAXMEM=.*$/MAXMEM=6G/g' "$GHIDRA_DIR/support/analyzeHeadless"
+sed -i '' 's/^MAXMEM=.*$/MAXMEM=6G/g' "$GHIDRA_DIR/support/analyzeHeadless"
 
 # Create script log dir if necessary
 if [ "$SCRIPT_LOG_DIR" != "" ]; then
@@ -153,6 +153,8 @@ export GHIDRA_SCRIPT_NAME
 # export IMPORT_EXISTING_FILES
 export DECOMPILE_EXISTING_FILES
 export STATS_DIR
+export SKIP_SUCCESSES
+export SKIP_FAILURES
 export -f process_one
 
 # Process each subdirectory (artifact), but process $NUM_INSTANCES simultaneously
