@@ -44,6 +44,8 @@ def train(
 
     training_args = TrainingArguments(
         output_dir=str(model_dir),
+        save_steps=1000,
+        save_total_limit=10,
         per_device_train_batch_size=1,
         per_device_eval_batch_size=1 if do_eval else None,
         evaluation_strategy="epoch" if do_eval else "no",
