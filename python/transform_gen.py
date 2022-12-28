@@ -44,7 +44,7 @@ def gen_transform_dir(
                     dest_name = src.name[:-len(extension)] + code_type.source_extension_for(src)
                     # don't need to pass extension because it's in src
                     transform_code_file(code_type, src, dest.with_name(dest_name))
-                    break
+                    return
         # Fallback
         log.debug(f"Copying non-code file {str(src)}")
         shutil.copy(src, dest)

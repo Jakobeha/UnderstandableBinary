@@ -35,10 +35,11 @@ class _CExampleDb(ExampleDb):
                 if node.kind in FUNCTION_KINDS:
                     node_text = _node_text(path, source_text, node)
                     if node_text is not None:
-                        function_id = self._get_function_id(path, node.spelling)
-                        if function_id not in self.source_functions:
-                            num_examples_added += 1
-                        self.source_functions[function_id] = node_text
+                        if '{' in node_text:
+                            function_id = self._get_function_id(path, node.spelling)
+                            if function_id not in self.source_functions:
+                                num_examples_added += 1
+                            self.source_functions[function_id] = node_text
                     else:
                         log.warning(f"Failed to get text for {node.spelling} in {path}")
         except Exception as e:
@@ -114,7 +115,7 @@ class _CCodeType(CodeType):
         for node in disassembled_source.cursor.get_children():
             node_text = _node_text(disassembled_path, disassembled_text, node)
             if node_text is not None:
-                if node.kind in FUNCTION_KINDS:
+                if node.kind in FUNCTION_KINDS and '{' in node_text:
                     yield TransformStr.regular(node_text)
                 else:
                     yield TransformStr.pass_through(node_text)
