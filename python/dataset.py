@@ -123,11 +123,12 @@ class ModelData:
         self.disassembleds = []
 
     def postprocess(self):
-        sources_and_disassembleds_and_code_types = \
-            list(zip(self.sources, self.disassembleds, self.source_disassembled_code_types))
-        sources_and_disassembleds_and_code_types.sort(key=lambda x: len(x[0]))
-        self.sources, self.disassembleds, self.source_disassembled_code_types = \
-            [list(s) for s in zip(*sources_and_disassembleds_and_code_types)]
+        if len(self) > 0:
+            sources_and_disassembleds_and_code_types = \
+                list(zip(self.sources, self.disassembleds, self.source_disassembled_code_types))
+            sources_and_disassembleds_and_code_types.sort(key=lambda x: len(x[0]))
+            self.sources, self.disassembleds, self.source_disassembled_code_types = \
+                [list(s) for s in zip(*sources_and_disassembleds_and_code_types)]
 
     PICKLE_PROTOCOL = 5
 
