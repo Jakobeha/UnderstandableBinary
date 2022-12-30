@@ -111,9 +111,17 @@ class ModelData:
         self.sources = []
         self.disassembleds = []
 
+    def postprocess(self):
+        sources_and_disassembleds_and_code_types = \
+            [zip(self.sources, self.disassembleds, self.source_disassembled_code_types)]
+        sources_and_disassembleds_and_code_types.sort(key=lambda x: len(x[0]))
+        self.sources, self.disassembleds, self.source_disassembled_code_types = \
+            [list(s) for s in zip(*sources_and_disassembleds_and_code_types)]
+
     PICKLE_PROTOCOL = 5
 
     def save(self, path_or_file: Path | BinaryIO):
+        self.postprocess()
         if isinstance(path_or_file, Path):
             with path_or_file.open("wb") as file:
                 self.save(file)

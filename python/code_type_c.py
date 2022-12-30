@@ -36,6 +36,7 @@ class _CExampleDb(ExampleDb):
                     node_text = _node_text(path, source_text, node)
                     if node_text is not None:
                         if '{' in node_text:
+                            _, node_text, _ = _split_function(node_text)
                             function_id = self._get_function_id(path, node.spelling)
                             if function_id not in self.source_functions:
                                 num_examples_added += 1
@@ -62,11 +63,12 @@ class _CExampleDb(ExampleDb):
                         "\n---\n".join(disassembled_components))
             return 0
         num_examples_added = 0
-        for function_name, function_data in chunk2(disassembled_components[1:]):
+        for function_name, function_text in chunk2(disassembled_components[1:]):
+            _, function_text, _ = _split_function(function_text)
             function_id = self._get_function_id(path, function_name)
             if function_id not in self.disassembled_functions:
                 num_examples_added += 1
-            self.disassembled_functions[function_id] = function_data
+            self.disassembled_functions[function_id] = function_text
         return num_examples_added
 
     def build_examples(self) -> Iterator[Tuple[ModelStr, ModelStr]]:
@@ -116,7 +118,10 @@ class _CCodeType(CodeType):
             node_text = _node_text(disassembled_path, disassembled_text, node)
             if node_text is not None:
                 if node.kind in FUNCTION_KINDS and '{' in node_text:
+                    head, body, foot = _split_function(node_text)
+                    yield TransformStr.pass_through(head)
                     yield TransformStr.regular(node_text)
+                    yield TransformStr.pass_through(foot)
                 else:
                     yield TransformStr.pass_through(node_text)
 
@@ -170,7 +175,6 @@ def _parse_source(source_path: Path) -> (str, TranslationUnit):
     return text, unit
 
 
-# noinspection PyMethodMayBeStatic
 def _node_text(source_path: Path, text: str, node: Cursor) -> Optional[str]:
     extent: SourceRange = node.extent
     if extent.start.file is None:
@@ -181,6 +185,11 @@ def _node_text(source_path: Path, text: str, node: Cursor) -> Optional[str]:
             text = file.read()
     return text[extent.start.offset:extent.end.offset]
 
+
+def _split_function(node_text: str) -> Tuple[str, str, str]:
+    head, body_foot = node_text.split("{", 1)
+    body, foot = body_foot.rsplit("}", 1)
+    return head + "{", body, "}" + foot
 
 class CCodeType(_CCodeType):
     def __init__(self):
