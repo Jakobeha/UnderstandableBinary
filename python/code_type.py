@@ -35,6 +35,9 @@ class ExampleDb(ABC):
     def build_examples(self) -> Iterator[Tuple[ModelStr, ModelStr]]:
         raise NotImplementedError("abstract")
 
+    def process_interrupt(self):
+        pass
+
 
 class CodeType(ABC):
     def __init__(self, source_extensions, bytecode_extensions, disassembled_extensions):
@@ -51,6 +54,7 @@ class CodeType(ABC):
     def source_extension_for(self, bytecode_or_disassembled_path: Path) -> str:
         raise NotImplementedError("abstract")
 
+    @abstractmethod
     def process_source(self, output_data: Iterator[TransformStr]) -> str | bytes:
         raise NotImplementedError("abstract")
 
@@ -60,6 +64,10 @@ class CodeType(ABC):
 
     @abstractmethod
     def __str__(self):
+        raise NotImplementedError("abstract")
+
+    @abstractmethod
+    def __reduce__(self):
         raise NotImplementedError("abstract")
 
     def __eq__(self, other):

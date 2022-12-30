@@ -1,12 +1,13 @@
 import os
 import sys
 import traceback
+from abc import ABC
 from itertools import islice
 from pathlib import Path
 import re
 from typing import Iterator, Tuple, Optional
 
-from clang.cindex import TranslationUnit, Cursor, SourceRange, Config, CursorKind
+from clang.cindex import TranslationUnit, Cursor, SourceRange, Config, CursorKind, Index
 
 from code_type import CodeType, ModelStr, ExampleDb, TransformStr
 from log import log
@@ -26,11 +27,12 @@ class _CExampleDb(ExampleDb):
     def __init__(self):
         self.source_functions = {}
         self.disassembled_functions = {}
+        self.index = Index.create()
 
     def add_source(self, path: Path) -> int:
         num_examples_added = 0
         try:
-            source_text, source = _parse_source(path)
+            source_text, source = _parse_source(path, self.index)
             for node in source.cursor.walk_preorder():
                 if node.kind in FUNCTION_KINDS:
                     node_text = _node_text(path, source_text, node)
@@ -98,9 +100,10 @@ class _CExampleDb(ExampleDb):
         return f"{super_stem}::{function_name}"
 
 
-class _CCodeType(CodeType):
+class _CCodeType(CodeType, ABC):
     def __init__(self, source_extensions, disassembled_extensions):
         super().__init__(source_extensions, [".o"], disassembled_extensions)
+        self.index = Index.create()
 
     def source_extension_for(self, bytecode_or_disassembled_path: Path) -> str:
         return self.source_extensions[0]
@@ -113,7 +116,7 @@ class _CCodeType(CodeType):
 
     def process_disassembled(self, disassembled_path: Path) -> Iterator[TransformStr]:
         self._assert_disassembled_suffix(disassembled_path)
-        disassembled_text, disassembled_source = _parse_source(disassembled_path)
+        disassembled_text, disassembled_source = _parse_source(disassembled_path, self.index)
         for node in disassembled_source.cursor.get_children():
             node_text = _node_text(disassembled_path, disassembled_text, node)
             if node_text is not None:
@@ -137,15 +140,19 @@ class _CCodeType(CodeType):
             )
 
 
-def _parse_source(source_path: Path) -> (str, TranslationUnit):
+def _parse_source(source_path: Path, clang_index: Index) -> (str, TranslationUnit):
     with source_path.open("rb") as file:
         # We don't want to fail on non-utf8 files (which do exist in the data for some reason)
         text = file.read().decode("utf-8", errors="ignore")
-    unit = TranslationUnit.from_source(
-        source_path,
-        unsaved_files=[(source_path, text)],
-        options=TranslationUnit.PARSE_INCOMPLETE | TranslationUnit.PARSE_SKIP_FUNCTION_BODIES,
-    )
+    ast_source_path = source_path.with_name(source_path.name + ".ast")
+    if ast_source_path.exists():
+        unit = clang_index.read(ast_source_path)
+    else:
+        unit = clang_index.parse(
+            source_path,
+            unsaved_files=[(source_path, text)],
+            options=TranslationUnit.PARSE_INCOMPLETE | TranslationUnit.PARSE_SKIP_FUNCTION_BODIES,
+        )
 
     # If the entire code is wrapped in #ifdef or #if, we will remove it
     if next(unit.cursor.get_children(), None) is None:
@@ -172,6 +179,8 @@ def _parse_source(source_path: Path) -> (str, TranslationUnit):
             )
         except Exception as e:
             raise Exception("Error parsing after removing surrounding #ifdef bad imports") from e
+
+    unit.save(ast_source_path)
     return text, unit
 
 
@@ -188,8 +197,12 @@ def _node_text(source_path: Path, text: str, node: Cursor) -> Optional[str]:
 
 def _split_function(node_text: str) -> Tuple[str, str, str]:
     head, body_foot = node_text.split("{", 1)
-    body, foot = body_foot.rsplit("}", 1)
-    return head + "{", body, "}" + foot
+    if '}' in body_foot:
+        body, foot = body_foot.rsplit("}", 1)
+        return head + "{", body, "}" + foot
+    else:
+        return head + "{", body_foot, ""
+
 
 class CCodeType(_CCodeType):
     def __init__(self):
@@ -198,13 +211,22 @@ class CCodeType(_CCodeType):
     def __str__(self):
         return "C"
 
+    def __reduce__(self):
+        return CCodeType, ()
+
 
 class CppCodeType(_CCodeType):
     def __init__(self):
-        super().__init__([".c", ".cpp", ".cc", ".cxx", ".c++", ".h", ".hpp"], [".o.c", ".o.cpp", ".o.cc", ".o.cxx", ".o.c++"])
+        super().__init__(
+            [".c", ".cpp", ".cc", ".cxx", ".c++", ".h", ".hpp"],
+            [".o.c", ".o.cpp", ".o.cc", ".o.cxx", ".o.c++"]
+        )
 
     def __str__(self):
         return "C/C++"
+
+    def __reduce__(self):
+        return CppCodeType, ()
 
 
 def configure_clang():

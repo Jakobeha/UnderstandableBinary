@@ -33,48 +33,59 @@ class ModelData:
         num_processed_disassembled_examples = 0
 
         log.info(f"adding artifact {str(root_dir)}")
-        # descriptions have trailing spaces to align the progress bars
-        with logging_progress_bar(desc="source-files         ", total=num_source_files, position=0,
-                                  leave=False) as source_files_pbar:
-            with logging_progress_bar(desc="disassembled-files   ", total=num_disassembled_files, position=1,
-                                      leave=False) as disassembled_files_pbar:
-                with logging_progress_bar(desc="source-examples      ", total=self.max_len, position=2,
-                                          leave=False) as source_examples_pbar:
-                    with logging_progress_bar(desc="disassembled-examples", total=self.max_len, position=3,
-                                              leave=False) as disassembled_examples_pbar:
-                        for file in walk_files(root_dir):
-                            if 0 < self.max_len <= min(
-                                    num_processed_disassembled_examples,
-                                    num_processed_disassembled_examples):
-                                log.info("** max_len reached, not adding any more examples")
-                                break
-                            for code_type in code_types:
-                                if not (0 < self.max_len <= num_processed_source_examples) and \
-                                        any(file.name.endswith(e) for e in code_type.source_extensions) and \
-                                        not any(file.name.endswith(e) for e in code_type.disassembled_extensions):
-                                    new_source_examples = dbs[code_type].add_source(file)
-                                    num_processed_source_examples += new_source_examples
-                                    source_files_pbar.update(1)
-                                    source_examples_pbar.update(new_source_examples)
-                                if not (0 < self.max_len <= num_processed_disassembled_examples) and \
-                                        any(file.name.endswith(e) for e in code_type.disassembled_extensions):
-                                    new_disassembled_examples = dbs[code_type].add_disassembled(file)
-                                    num_processed_disassembled_examples += new_disassembled_examples
-                                    disassembled_files_pbar.update(1)
-                                    disassembled_examples_pbar.update(new_disassembled_examples)
-
-        # Add all examples, but
-        # - don't add more than max_len
-        # - add examples from each language in a round-robin fashion
-        # - print the number of examples we added of each language
-        for code_type, db in dbs.items():
-            num_examples_added = 0
-            for source, disassembled in db.build_examples():
-                self.source_disassembled_code_types.append(code_type)
-                self.sources.append(source)
-                self.disassembleds.append(disassembled)
-                num_examples_added += 1
-            log.info(f"** {code_type} - {num_examples_added} examples")
+        try:
+            # descriptions have trailing spaces to align the progress bars
+            with logging_progress_bar(desc="source-files         ", total=num_source_files, position=0,
+                                      leave=False) as source_files_pbar:
+                with logging_progress_bar(desc="disassembled-files   ", total=num_disassembled_files, position=1,
+                                          leave=False) as disassembled_files_pbar:
+                    with logging_progress_bar(desc="source-examples      ", total=self.max_len, position=2,
+                                              leave=False) as source_examples_pbar:
+                        with logging_progress_bar(desc="disassembled-examples", total=self.max_len, position=3,
+                                                  leave=False) as disassembled_examples_pbar:
+                            for file in walk_files(root_dir):
+                                if 0 < self.max_len <= min(
+                                        num_processed_disassembled_examples,
+                                        num_processed_disassembled_examples):
+                                    log.info("** max_len reached, not adding any more examples")
+                                    break
+                                for code_type in code_types:
+                                    if not (0 < self.max_len <= num_processed_source_examples) and \
+                                            any(file.name.endswith(e) for e in code_type.source_extensions) and \
+                                            not any(file.name.endswith(e) for e in code_type.disassembled_extensions):
+                                        new_source_examples = dbs[code_type].add_source(file)
+                                        num_processed_source_examples += new_source_examples
+                                        source_files_pbar.update(1)
+                                        source_examples_pbar.update(new_source_examples)
+                                    if not (0 < self.max_len <= num_processed_disassembled_examples) and \
+                                            any(file.name.endswith(e) for e in code_type.disassembled_extensions):
+                                        new_disassembled_examples = dbs[code_type].add_disassembled(file)
+                                        num_processed_disassembled_examples += new_disassembled_examples
+                                        disassembled_files_pbar.update(1)
+                                        disassembled_examples_pbar.update(new_disassembled_examples)
+        except KeyboardInterrupt:
+            log.info(f"** interrupted, not adding any more examples for artifact {str(root_dir)}")
+            for db in dbs.values():
+                db.process_interrupt()
+            raise KeyboardInterrupt
+        except Exception as e:
+            log.exception(f"** error while adding artifact {str(root_dir)}")
+            for db in dbs.values():
+                db.process_interrupt()
+            raise e
+        finally:
+            # Add all examples, but
+            # - don't add more than max_len
+            # - add examples from each language in a round-robin fashion
+            # - print the number of examples we added of each language
+            for code_type, db in dbs.items():
+                num_examples_added = 0
+                for source, disassembled in db.build_examples():
+                    self.source_disassembled_code_types.append(code_type)
+                    self.sources.append(source)
+                    self.disassembleds.append(disassembled)
+                    num_examples_added += 1
+                log.info(f"** {code_type} - {num_examples_added} examples")
 
     def split_off_end(self, interval: float):
         split_index = int(len(self) * interval)
@@ -113,7 +124,7 @@ class ModelData:
 
     def postprocess(self):
         sources_and_disassembleds_and_code_types = \
-            [zip(self.sources, self.disassembleds, self.source_disassembled_code_types)]
+            list(zip(self.sources, self.disassembleds, self.source_disassembled_code_types))
         sources_and_disassembleds_and_code_types.sort(key=lambda x: len(x[0]))
         self.sources, self.disassembleds, self.source_disassembled_code_types = \
             [list(s) for s in zip(*sources_and_disassembleds_and_code_types)]
