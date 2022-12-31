@@ -190,8 +190,8 @@ def _node_text(source_path: Path, text: str, node: Cursor) -> Optional[str]:
         return None
     path = extent.start.file.name
     if path != str(source_path):
-        with open(path, "r") as file:
-            text = file.read()
+        with open(path, "rb") as file:
+            text = file.read().decode("utf-8", errors="ignore")
     return text[extent.start.offset:extent.end.offset]
 
 
