@@ -7,7 +7,8 @@ from pathlib import Path
 import re
 from typing import Iterator, Tuple, Optional
 
-from clang.cindex import TranslationUnit, Cursor, SourceRange, Config, CursorKind, Index, File, Diagnostic
+from clang.cindex import TranslationUnit, Cursor, SourceRange, Config, CursorKind, Index, Diagnostic, \
+    TranslationUnitLoadError
 
 from code_type import CodeType, ModelStr, ExampleDb, TransformStr
 from log import log
@@ -53,10 +54,13 @@ class _CExampleDb(ExampleDb):
             if num_examples_added == 0:
                 log.debug(f"No functions found in source file {path}")
                 log.debug(f"  Diagnostics: {_pretty_diagnostics(source.diagnostics)}")
+        except TranslationUnitLoadError:
+            log.debug(f"libclang failed to parse {path}")
         except Exception as e:
             traceback.print_exc()
             log.warning(f"Failed to parse {path}: {e}")
-        return num_examples_added
+        finally:
+            return num_examples_added
 
     def add_disassembled(self, path: Path) -> int:
         if path.stat().st_size == 0:
@@ -150,7 +154,15 @@ class _CCodeType(CodeType, ABC):
 
 
 MISSING_IMPORT_REGEX = re.compile(r"^'(.*)' file not found$")
+PROBABLY_CPP_REGEX = re.compile(
+    r"^\s*(?:namespace|class|struct|enum|template|typename|using|typedef|operator|public|private|protected|friend|"
+    r"virtual|static|const|constexpr|inline|explicit|#\s*include\s*<\w+>)",
+    flags=re.MULTILINE
+)
 UNIT_OPTIONS = TranslationUnit.PARSE_INCOMPLETE | TranslationUnit.PARSE_SKIP_FUNCTION_BODIES
+
+ENV_EXTRA_INCLUDES = os.environ.get("PARSE_EXTRA_INCLUDES", "").split(",")
+ENV_EXTRA_CLANG_ARGS = os.environ.get("PARSE_EXTRA_CLANG_ARGS", "").split(",")
 
 
 def _parse_source(source_path: Path, clang_index: Index) -> (str, TranslationUnit):
@@ -164,129 +176,45 @@ def _parse_source(source_path: Path, clang_index: Index) -> (str, TranslationUni
         text = file.read().decode("utf-8", errors="ignore")
 
     # Get parse args, also setup unsaved files dict
-    default_include_paths = (path for path in chain([
-        "/usr/include",
-        "/usr/local/include",
-        "/usr/include/x86_64-linux-gnu",
-        "/opt/local/Cellar/include",
-    ], os.environ.get("PARSE_EXTRA_INCLUDES", "").split(",")) if os.path.exists(path))
+    system_include_paths = (path for path in chain(
+        [
+            "/usr/include",
+            "/usr/local/include",
+            "/usr/include/x86_64-linux-gnu",
+            "/opt/local/Cellar/include",
+            "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
+            "/Library/Developer/CommandLineTools/usr/include/c++/v1"
+            "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1"
+        ],
+        ENV_EXTRA_INCLUDES
+    ) if os.path.exists(path))
     local_include_paths = (str(path.resolve()) for path in source_path.parents)
-    include_paths = chain(local_include_paths, default_include_paths)
     unit_args = list(chain(
-        ["-ferror-limit=0"],
-        (f"-I{path}" for path in include_paths)
+        [
+            "-include/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stddef.h"
+        ] if sys.platform == "darwin" else [],
+        ENV_EXTRA_CLANG_ARGS,
+        (f"-I{path}" for path in local_include_paths),
+        (f"-isystem{path}" for path in system_include_paths)
     ))
-    unit_unsaved_files = {}
-
-    # Do parse the translation unit
-    # noinspection PyShadowingNames
-    def parse_translation_unit(text: str) -> TranslationUnit:
-        return clang_index.parse(
-            source_path,
-            unsaved_files=list(chain([(source_path, text)], unit_unsaved_files.items())),
-            args=unit_args,
-            options=UNIT_OPTIONS
-        )
-
-    unit = parse_translation_unit(text)
-
-    # Now, we might need to re-parse if clang encounters errors, since we are much more relaxed than clang,
-    # and clang tends to completely fail when we still want to parse some of the data.
-    # So the following functions modify the file so that we can potentially still get data from it
-    # noinspection PyShadowingNames
-    def remove_missing_imports(text: str, unit: TranslationUnit) -> (str, TranslationUnit, bool):
-        try:
-            # Get the missing import. clang only checks one import at a time.
-            # If for some reason clang does multiple missing imports we run this iteratively anyways
-            missing_import_origin_and_target: Optional[Tuple[Optional[File], str]] = next((
-                (file, match.group(1))
-                for file, match in (
-                    (diagnostic.location.file, MISSING_IMPORT_REGEX.fullmatch(diagnostic.spelling))
-                    for diagnostic in unit.diagnostics
-                )
-                if match is not None
-            ), None)
-            if missing_import_origin_and_target is None:
-                return text, unit, False
-            missing_import_origin, missing_import_target = missing_import_origin_and_target
-
-            # Helpers to actually find and remove the missing import
-            def is_line_missing_import(line: str) -> bool:
-                return line.startswith(f"#") and "include" in line and missing_import_target in line
-
-            # noinspection PyShadowingNames
-            def remove_missing_import_from_text(text: str) -> Tuple[str, bool]:
-                lines = text.splitlines()
-                i = 0
-                removed = False
-                while i < len(lines):
-                    line = lines[i]
-                    if is_line_missing_import(line):
-                        lines.pop(i)
-                        removed = True
-                    else:
-                        i += 1
-                return "\n".join(lines) if removed else text, removed
-
-            # Do find and remove the missing import
-            if missing_import_origin is None or str(missing_import_origin.name) == source_path.name:
-                # Local missing import
-                text, removed = remove_missing_import_from_text(text)
-            else:
-                # Missing import from another file
-                missing_import_origin_name = missing_import_origin.name
-                if missing_import_origin_name not in unit_unsaved_files:
-                    with Path(missing_import_origin_name).open("rb") as file:
-                        unit_unsaved_files[missing_import_origin_name] = file.read().decode("utf-8", errors="ignore")
-                missing_import_origin_text = unit_unsaved_files[missing_import_origin_name]
-                missing_import_origin_text, removed = remove_missing_import_from_text(missing_import_origin_text)
-                unit_unsaved_files[missing_import_origin_name] = missing_import_origin_text
-
-            # Check if removed, and if so, re-parse
-            if not removed:
-                log.warning(f"Failed to remove missing import from {source_path}: {missing_import_target}")
-                return text, unit, False
-            unit = parse_translation_unit(text)
-            return text, unit, True
-        except Exception as e:
-            raise Exception("Error parsing after removing missing imports") from e
-
-    # noinspection PyShadowingNames
-    def remove_surrounding_ifdef(text: str, unit: TranslationUnit) -> (str, TranslationUnit):
-        try:
-            lines = text.splitlines()
-            while len(lines) > 0 and lines[-1].strip() == "":
-                lines.pop()
-            if len(lines) == 0:
-                # This code path is reached when we have an empty file (or a file with only whitespace)
-                return "", unit
-            if lines[-1].startswith("#endif"):
-                ifdef_idx = next(
-                    (i for i, line in enumerate(lines) if line.startswith("#ifdef ") or line.startswith("#if ")),
-                    None
-                )
-                if ifdef_idx is not None:
-                    lines.pop()
-                    lines.pop(ifdef_idx)
-            text = "\n".join(lines)
-            unit = parse_translation_unit(text)
-            return text, unit
-        except Exception as e:
-            raise Exception("Error parsing after removing surrounding #ifdef") from e
-
-    # The exact process to get more information from the file:
-    # - If the entire code is wrapped in #ifdef or #if, we will remove it
-    # - If there are missing imports, we will remove them until there are no more or we make no progress
-    # May need to remove missing imports after we find #ifdef, but can remove #ifdef before missing imports
-    if next(unit.cursor.get_children(), None) is None:
-        text, unit = remove_surrounding_ifdef(text, unit)
-    while True:
-        text, unit, removed = remove_missing_imports(text, unit)
-        if not removed:
-            break
+    unit = clang_index.parse(
+        source_path,
+        unsaved_files=[(source_path, text)],
+        args=unit_args,
+        options=UNIT_OPTIONS
+    )
 
     # Done
     return text, unit
+
+
+def _source_path_is_probably_cpp(source_path: Path, text: str) -> bool:
+    if source_path.suffix in [".cpp", ".hpp", ".cc", ".cxx", ".hxx"]:
+        return True
+    elif source_path.suffix in [".c"]:
+        return False
+    else:
+        return PROBABLY_CPP_REGEX.search(text) is not None
 
 
 def _node_text(source_path: Path, text: str, node: Cursor) -> Optional[str]:
@@ -310,7 +238,7 @@ def _split_function(node_text: str) -> Tuple[str, str, str]:
 
 
 def _pretty_diagnostics(diagnostics: Iterator[Diagnostic]) -> str:
-    return "\n\t".join(_pretty_diagnostic(diagnostic) for diagnostic in diagnostics)
+    return "\n".join(_pretty_diagnostic(diagnostic) for diagnostic in diagnostics)
 
 
 def _pretty_diagnostic(diagnostic: Diagnostic) -> str:
@@ -318,6 +246,7 @@ def _pretty_diagnostic(diagnostic: Diagnostic) -> str:
         f"{diagnostic.location.file.name}:{diagnostic.location.line}:{diagnostic.location.column}" \
         if diagnostic.location.file is not None else "<no-file>"
     return f"{diagnostic.severity}[{diagnostic_file}]: {diagnostic.spelling} "
+
 
 class CCodeType(_CCodeType):
     def __init__(self):
