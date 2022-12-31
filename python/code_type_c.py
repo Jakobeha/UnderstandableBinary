@@ -94,8 +94,10 @@ class _CExampleDb(ExampleDb):
                          else " ".join(missing_disassembleds)))
 
     @staticmethod
-    def _get_function_id(_path: Path, function_name: str) -> str:
-        return function_name
+    def _get_function_id(path: Path, function_name: str) -> str:
+        # Unlike the real stem we don't want *any* extensions
+        super_stem = path.name.split(".")[0]
+        return f"{super_stem}::{function_name}"
 
 
 class _CCodeType(CodeType, ABC):
