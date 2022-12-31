@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -19,12 +19,15 @@ class _PbarStub:
         pass
 
 
+Pbar = Union[tqdm, _PbarStub]
+
+
 class WithLoggingPbar:
     def __init__(self, logging_redirect_tdqm, tdqm):
         self.logging_redirect_tdqm = logging_redirect_tdqm
         self.tdqm = tdqm
 
-    def __enter__(self):
+    def __enter__(self) -> Pbar:
         if self.logging_redirect_tdqm is not None:
             self.logging_redirect_tdqm.__enter__()
         if self.tdqm is not None:
