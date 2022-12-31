@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Iterator, Tuple
+from typing import Iterator
 
 ModelStr = str
 
@@ -32,7 +32,7 @@ class ExampleDb(ABC):
         raise NotImplementedError("abstract")
 
     @abstractmethod
-    def build_examples(self) -> Iterator[Tuple[ModelStr, ModelStr]]:
+    def build_examples(self) -> Iterator[tuple[ModelStr, ModelStr]]:
         raise NotImplementedError("abstract")
 
     def process_interrupt(self):

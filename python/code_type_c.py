@@ -1,61 +1,38 @@
-import os
-import sys
 import traceback
 from abc import ABC
-from itertools import islice, chain
+from itertools import islice
 from pathlib import Path
 import re
-from typing import Iterator, Tuple, Optional
+from typing import Iterator, Iterable
 
-from clang.cindex import TranslationUnit, Cursor, SourceRange, Config, CursorKind, Index, Diagnostic, \
-    TranslationUnitLoadError
+from tree_sitter import Parser, Language
+from tree_sitter_langs import scrape_functions, C_LANGUAGE, CPP_LANGUAGE, TreeSitterFunction
 
 from code_type import CodeType, ModelStr, ExampleDb, TransformStr
 from log import log
 from utils import chunk2
 
-# these are monkey-patched but IntelliJ can't see them
-# noinspection PyUnresolvedReferences
-FUNCTION_KINDS = {
-    CursorKind.FUNCTION_DECL,
-    CursorKind.CXX_METHOD,
-    CursorKind.OBJC_CLASS_METHOD_DECL,
-    CursorKind.OBJC_INSTANCE_METHOD_DECL
-}
-
 
 class _CExampleDb(ExampleDb):
-    def __init__(self):
+    def __init__(self, language: Language, parser: Parser):
         self.source_functions = {}
         self.disassembled_functions = {}
-        self.index = Index.create()
-
-    SOURCE_SIZE_LIMIT = int(os.environ.get("SOURCE_SIZE_LIMIT", 10_000_000))
+        self.language = language
+        self.parser = parser
 
     def add_source(self, path: Path) -> int:
         num_examples_added = 0
-        if self.SOURCE_SIZE_LIMIT != 0 and path.stat().st_size > self.SOURCE_SIZE_LIMIT:
-            log.debug(f"Skipping large source file {path}")
-            return 0
         try:
-            source_text, source = _parse_source(path, self.index)
-            for node in source.cursor.walk_preorder():
-                if node.kind in FUNCTION_KINDS:
-                    node_text = _node_text(path, source_text, node)
-                    if node_text is not None:
-                        if '{' in node_text:
-                            _, node_text, _ = _split_function(node_text)
-                            function_id = self._get_function_id(path, node.spelling)
-                            if function_id not in self.source_functions:
-                                num_examples_added += 1
-                            self.source_functions[function_id] = node_text
-                    else:
-                        log.warning(f"Failed to get text for {node.spelling} in {path}")
+            functions = _scrape_functions(path, self.language, self.parser)
+            for function in functions:
+                if '{' in function.text:
+                    _, function_text, _ = _split_function(function.text)
+                    function_id = self._get_function_id(path, function.name)
+                    if function_id not in self.source_functions:
+                        num_examples_added += 1
+                    self.source_functions[function_id] = function_text
             if num_examples_added == 0:
                 log.debug(f"No functions found in source file {path}")
-                log.debug(f"  Diagnostics: {_pretty_diagnostics(source.diagnostics)}")
-        except TranslationUnitLoadError:
-            log.debug(f"libclang failed to parse {path}")
         except Exception as e:
             traceback.print_exc()
             log.warning(f"Failed to parse {path}: {e}")
@@ -85,7 +62,7 @@ class _CExampleDb(ExampleDb):
             self.disassembled_functions[function_id] = function_text
         return num_examples_added
 
-    def build_examples(self) -> Iterator[Tuple[ModelStr, ModelStr]]:
+    def build_examples(self) -> Iterator[tuple[ModelStr, ModelStr]]:
         missing_sources = set()
         missing_disassembleds = set()
         for function_id, disassembled_function in self.disassembled_functions.items():
@@ -114,32 +91,33 @@ class _CExampleDb(ExampleDb):
 
 
 class _CCodeType(CodeType, ABC):
-    def __init__(self, source_extensions, disassembled_extensions):
+    def __init__(self, language: Language, source_extensions, disassembled_extensions):
         super().__init__(source_extensions, [".o"], disassembled_extensions)
-        self.index = Index.create()
+        self.language = language
+        self.parser = Parser()
 
     def source_extension_for(self, bytecode_or_disassembled_path: Path) -> str:
         return self.source_extensions[0]
 
     def ExampleDb(self) -> ExampleDb:
-        return _CExampleDb()
+        return _CExampleDb(self.language, self.parser)
 
     def process_source(self, source_data: Iterator[TransformStr]) -> str | bytes:
         return "\n\n".join(source_text.string for source_text in source_data)
 
     def process_disassembled(self, disassembled_path: Path) -> Iterator[TransformStr]:
         self._assert_disassembled_suffix(disassembled_path)
-        disassembled_text, disassembled_source = _parse_source(disassembled_path, self.index)
-        for node in disassembled_source.cursor.get_children():
-            node_text = _node_text(disassembled_path, disassembled_text, node)
-            if node_text is not None:
-                if node.kind in FUNCTION_KINDS and '{' in node_text:
-                    head, body, foot = _split_function(node_text)
-                    yield TransformStr.pass_through(head)
-                    yield TransformStr.regular(body)
-                    yield TransformStr.pass_through(foot)
-                else:
-                    yield TransformStr.pass_through(node_text)
+        # TODO: Do this properly - walk through *every* node using Cursor, but TransformStr.regular iff the node matches
+        #   the query and body has "{" and TransformStr.pass_through otherwise
+        disassembled_functions = _scrape_functions(disassembled_path, self.language, self.parser)
+        for function in disassembled_functions:
+            if '{' in function.name:
+                head, body, tail = _split_function(function.text)
+                yield TransformStr.pass_through(head)
+                yield TransformStr.regular(body)
+                yield TransformStr.pass_through(tail)
+            else:
+                yield TransformStr.pass_through(function.text)
 
     def _assert_source_suffix(self, disassembled_path: Path):
         if not any(disassembled_path.name.endswith(src_ext) for src_ext in self.source_extensions):
@@ -153,82 +131,11 @@ class _CCodeType(CodeType, ABC):
             )
 
 
-MISSING_IMPORT_REGEX = re.compile(r"^'(.*)' file not found$")
-PROBABLY_CPP_REGEX = re.compile(
-    r"^\s*(?:namespace|class|struct|enum|template|typename|using|typedef|operator|public|private|protected|friend|"
-    r"virtual|static|const|constexpr|inline|explicit|#\s*include\s*<\w+>)",
-    flags=re.MULTILINE
-)
-UNIT_OPTIONS = TranslationUnit.PARSE_INCOMPLETE | TranslationUnit.PARSE_SKIP_FUNCTION_BODIES
-
-ENV_EXTRA_INCLUDES = os.environ.get("PARSE_EXTRA_INCLUDES", "").split(",")
-ENV_EXTRA_CLANG_ARGS = os.environ.get("PARSE_EXTRA_CLANG_ARGS", "").split(",")
+def _scrape_functions(path: Path, language: Language, parser: Parser) -> Iterable[TreeSitterFunction]:
+    return scrape_functions(path, language if path.suffix != "c" else C_LANGUAGE, parser)
 
 
-def _parse_source(source_path: Path, clang_index: Index) -> (str, TranslationUnit):
-    # currently clang_index.read and TranslationUnit#save are unused because reading an AST dump
-    # sporadically throws SIGTRAP (macOS) or SIGSEGV (Linux)
-    # (could use clang via spawning processes but at that point idk if there's any more performance gain)
-
-    # Read the source text, since we must reference it anyways to get AST text
-    with source_path.open("rb") as file:
-        # We don't want to fail on non-utf8 files (which do exist in the data for some reason)
-        text = file.read().decode("utf-8", errors="ignore")
-
-    # Get parse args, also setup unsaved files dict
-    system_include_paths = (path for path in chain(
-        [
-            "/usr/include",
-            "/usr/local/include",
-            "/usr/include/x86_64-linux-gnu",
-            "/opt/local/Cellar/include",
-            "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
-            "/Library/Developer/CommandLineTools/usr/include/c++/v1"
-            "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1"
-        ],
-        ENV_EXTRA_INCLUDES
-    ) if os.path.exists(path))
-    local_include_paths = (str(path.resolve()) for path in source_path.parents)
-    unit_args = list(chain(
-        [
-            "-include/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stddef.h"
-        ] if sys.platform == "darwin" else [],
-        ENV_EXTRA_CLANG_ARGS,
-        (f"-I{path}" for path in local_include_paths),
-        (f"-isystem{path}" for path in system_include_paths)
-    ))
-    unit = clang_index.parse(
-        source_path,
-        unsaved_files=[(source_path, text)],
-        args=unit_args,
-        options=UNIT_OPTIONS
-    )
-
-    # Done
-    return text, unit
-
-
-def _source_path_is_probably_cpp(source_path: Path, text: str) -> bool:
-    if source_path.suffix in [".cpp", ".hpp", ".cc", ".cxx", ".hxx"]:
-        return True
-    elif source_path.suffix in [".c"]:
-        return False
-    else:
-        return PROBABLY_CPP_REGEX.search(text) is not None
-
-
-def _node_text(source_path: Path, text: str, node: Cursor) -> Optional[str]:
-    extent: SourceRange = node.extent
-    if extent.start.file is None:
-        return None
-    path = extent.start.file.name
-    if path != str(source_path):
-        with open(path, "rb") as file:
-            text = file.read().decode("utf-8", errors="ignore")
-    return text[extent.start.offset:extent.end.offset]
-
-
-def _split_function(node_text: str) -> Tuple[str, str, str]:
+def _split_function(node_text: str) -> tuple[str, str, str]:
     head, body_foot = node_text.split("{", 1)
     if '}' in body_foot:
         body, foot = body_foot.rsplit("}", 1)
@@ -237,20 +144,9 @@ def _split_function(node_text: str) -> Tuple[str, str, str]:
         return head + "{", body_foot, ""
 
 
-def _pretty_diagnostics(diagnostics: Iterator[Diagnostic]) -> str:
-    return "\n".join(_pretty_diagnostic(diagnostic) for diagnostic in diagnostics)
-
-
-def _pretty_diagnostic(diagnostic: Diagnostic) -> str:
-    diagnostic_file = \
-        f"{diagnostic.location.file.name}:{diagnostic.location.line}:{diagnostic.location.column}" \
-        if diagnostic.location.file is not None else "<no-file>"
-    return f"{diagnostic.severity}[{diagnostic_file}]: {diagnostic.spelling} "
-
-
 class CCodeType(_CCodeType):
     def __init__(self):
-        super().__init__([".c", ".h"], [".o.c"])
+        super().__init__(C_LANGUAGE, [".c", ".h"], [".o.c"])
 
     def __str__(self):
         return "C"
@@ -262,6 +158,7 @@ class CCodeType(_CCodeType):
 class CppCodeType(_CCodeType):
     def __init__(self):
         super().__init__(
+            CPP_LANGUAGE,
             [".c", ".cpp", ".cc", ".cxx", ".c++", ".h", ".hpp"],
             [".o.c", ".o.cpp", ".o.cc", ".o.cxx", ".o.c++"]
         )
@@ -271,12 +168,3 @@ class CppCodeType(_CCodeType):
 
     def __reduce__(self):
         return CppCodeType, ()
-
-
-def configure_clang():
-    # On macOS, the default clang installation is not in the path, but is in the CommandLineTools
-    if sys.platform == "darwin" and os.path.isfile("/Library/Developer/CommandLineTools/usr/lib/libclang.dylib"):
-        Config.set_library_file("/Library/Developer/CommandLineTools/usr/lib/libclang.dylib")
-
-
-configure_clang()

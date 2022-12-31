@@ -1103,6 +1103,7 @@ opt-einsum = ["opt-einsum (>=3.3)"]
 [package.source]
 type = "url"
 url = "https://download.pytorch.org/whl/cpu/torch-1.13.0-cp310-none-macosx_11_0_arm64.whl"
+
 [[package]]
 name = "torch-utils"
 version = "0.1.2"
@@ -1203,6 +1204,18 @@ torch = ["torch (>=1.7,!=1.12.0)"]
 torch-speech = ["kenlm", "librosa", "phonemizer", "pyctcdecode (>=0.4.0)", "torchaudio"]
 torchhub = ["filelock", "huggingface-hub (>=0.10.0,<1.0)", "importlib-metadata", "numpy (>=1.17)", "packaging (>=20.0)", "protobuf (<=3.20.2)", "regex (!=2019.12.17)", "requests", "sentencepiece (>=0.1.91,!=0.1.92)", "tokenizers (>=0.11.1,!=0.11.3,<0.14)", "torch (>=1.7,!=1.12.0)", "tqdm (>=4.27)"]
 vision = ["Pillow"]
+
+[[package]]
+name = "tree-sitter"
+version = "0.20.1"
+description = "Python bindings to the Tree-sitter parsing library"
+category = "main"
+optional = false
+python-versions = ">=3.3"
+files = [
+    {file = "tree_sitter-0.20.1-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:6f11a1fd909dcf569e7b1d98861a837436799e757bbbc5cd5280989050929e12"},
+    {file = "tree_sitter-0.20.1.tar.gz", hash = "sha256:e93f082c545d6649bcfb5d681ed255eb004a6ce22988971a128f40692feec60d"},
+]
 
 [[package]]
 name = "typing-extensions"
@@ -1430,4 +1443,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.11"
-content-hash = "61998a0a9a0f1d19c356f1e5ccdfaf89588a0017d6a3a2f3092c9d08a19fb880"
+content-hash = "d0abae8530703d143fb3f707ebea66a8a1668a78ac457369d80f2d6abcbcb02c"

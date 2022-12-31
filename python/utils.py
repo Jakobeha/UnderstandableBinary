@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import shutil
-from typing import Iterable, Tuple, TypeVar, BinaryIO, Generic
+from typing import Iterable, TypeVar, BinaryIO, Generic
 
 T = TypeVar('T')
 
@@ -56,7 +56,7 @@ def mk_empty_binary_file(path: Path, force: bool) -> BinaryIO:
     return path.open("wb")
 
 
-def chunk2(iterable: Iterable[T]) -> Iterable[Tuple[T, T]]:
+def chunk2(iterable: Iterable[T]) -> Iterable[tuple[T, T]]:
     """Chunk an iterable into pairs"""
     it = iter(iterable)
     while True:
