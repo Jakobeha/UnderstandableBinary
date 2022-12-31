@@ -89,13 +89,27 @@ def scrape_functions(source_path: Path, lang: Language, parser: Parser) -> Itera
     query = FUNCTION_QUERIES[lang]
     tree: Tree = parser.parse(source_bytes)
     captures: list[tuple[Node, str]] = query.captures(tree.root_node)
-    assert len(captures) % 2 == 0
-    for fn, fn_name in chunk2(captures):
-        assert fn[1] == "fn"
-        assert fn_name[1] == "fn_name"
-        fn2 = fn[0]
-        fn_name2 = fn_name[0]
-        yield TreeSitterFunction(
-            fn_name2.text.decode("utf-8", errors="ignore"),
-            fn2.text.decode("utf-8", errors="ignore"),
-        )
+    if len(captures) % 2 == 0 and \
+            all(fn[1] == "fn" and fn_name[1] == "fn_name" for fn, fn_name in chunk2(captures)):
+        # Fastpath, all files should follow this but there is some weird bug or edge case I don't get
+        for fn, fn_name in chunk2(captures):
+            fn2 = fn[0]
+            fn_name2 = fn_name[0]
+            yield TreeSitterFunction(
+                fn_name2.text.decode("utf-8", errors="ignore"),
+                fn2.text.decode("utf-8", errors="ignore"),
+            )
+    else:
+        # Slowpath
+        fn = None
+        for capture in captures:
+            if capture[1] == "fn":
+                fn = capture[0]
+            else:
+                assert capture[1] == "fn_name"
+                assert fn is not None
+                fn_name = capture[0]
+                yield TreeSitterFunction(
+                    fn_name.text.decode("utf-8", errors="ignore"),
+                    fn.text.decode("utf-8", errors="ignore"),
+                )
