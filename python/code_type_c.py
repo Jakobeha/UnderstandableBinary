@@ -94,10 +94,8 @@ class _CExampleDb(ExampleDb):
                          else " ".join(missing_disassembleds)))
 
     @staticmethod
-    def _get_function_id(path: Path, function_name: str) -> str:
-        # Unlike the real stem we don't want *any* extensions
-        super_stem = path.name.split(".")[0]
-        return f"{super_stem}::{function_name}"
+    def _get_function_id(_path: Path, function_name: str) -> str:
+        return function_name
 
 
 class _CCodeType(CodeType, ABC):
@@ -123,7 +121,7 @@ class _CCodeType(CodeType, ABC):
                 if node.kind in FUNCTION_KINDS and '{' in node_text:
                     head, body, foot = _split_function(node_text)
                     yield TransformStr.pass_through(head)
-                    yield TransformStr.regular(node_text)
+                    yield TransformStr.regular(body)
                     yield TransformStr.pass_through(foot)
                 else:
                     yield TransformStr.pass_through(node_text)
@@ -141,18 +139,17 @@ class _CCodeType(CodeType, ABC):
 
 
 def _parse_source(source_path: Path, clang_index: Index) -> (str, TranslationUnit):
+    # currently clang_index.read and TranslationUnit#save are unused because reading an AST dump
+    # sporadically throws SIGTRAP (macOS) or SIGSEGV (Linux)
+    # (could use clang via spawning processes but at that point idk if there's any more performance gain)
     with source_path.open("rb") as file:
         # We don't want to fail on non-utf8 files (which do exist in the data for some reason)
         text = file.read().decode("utf-8", errors="ignore")
-    ast_source_path = source_path.with_name(source_path.name + ".ast")
-    if ast_source_path.exists():
-        unit = clang_index.read(ast_source_path)
-    else:
-        unit = clang_index.parse(
-            source_path,
-            unsaved_files=[(source_path, text)],
-            options=TranslationUnit.PARSE_INCOMPLETE | TranslationUnit.PARSE_SKIP_FUNCTION_BODIES,
-        )
+    unit = clang_index.parse(
+        source_path,
+        unsaved_files=[(source_path, text)],
+        options=TranslationUnit.PARSE_INCOMPLETE | TranslationUnit.PARSE_SKIP_FUNCTION_BODIES,
+    )
 
     # If the entire code is wrapped in #ifdef or #if, we will remove it
     if next(unit.cursor.get_children(), None) is None:
@@ -180,7 +177,6 @@ def _parse_source(source_path: Path, clang_index: Index) -> (str, TranslationUni
         except Exception as e:
             raise Exception("Error parsing after removing surrounding #ifdef bad imports") from e
 
-    unit.save(ast_source_path)
     return text, unit
 
 
