@@ -23,8 +23,8 @@ def setup():
 
 setup()
 
-C_LANGUAGE = Language(TREE_SITTER_SO_PATH, 'c')
-CPP_LANGUAGE = Language(TREE_SITTER_SO_PATH, 'cpp')
+C_LANGUAGE = Language(str(TREE_SITTER_SO_PATH), 'c')
+CPP_LANGUAGE = Language(str(TREE_SITTER_SO_PATH), 'cpp')
 
 _C_FN_QUERY = """
 (
