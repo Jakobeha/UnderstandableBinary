@@ -111,7 +111,7 @@ class _CCodeType(CodeType, ABC):
         #   the query and body has "{" and TransformStr.pass_through otherwise
         disassembled_functions = _scrape_functions(disassembled_path, self.language, self.parser)
         for function in disassembled_functions:
-            if '{' in function.name:
+            if '{' in function.text:
                 head, body, tail = _split_function(function.text)
                 yield TransformStr.pass_through(head)
                 yield TransformStr.regular(body)
