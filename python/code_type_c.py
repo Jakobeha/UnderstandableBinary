@@ -146,7 +146,7 @@ def _split_function(node_text: str) -> tuple[str, str, str]:
 
 class CCodeType(_CCodeType):
     def __init__(self):
-        super().__init__(C_LANGUAGE, [".c", ".h"], [".o.c"])
+        super().__init__(C_LANGUAGE, [".c"], [".o.c"])
 
     def __str__(self):
         return "C"
@@ -159,7 +159,7 @@ class CppCodeType(_CCodeType):
     def __init__(self):
         super().__init__(
             CPP_LANGUAGE,
-            [".c", ".cpp", ".cc", ".cxx", ".c++", ".h", ".hpp"],
+            [".c", ".cpp", ".cc", ".cxx", ".c++"],
             [".o.c", ".o.cpp", ".o.cc", ".o.cxx", ".o.c++"]
         )
 
