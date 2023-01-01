@@ -11,7 +11,7 @@ RECREATE=0
 function show_help() {
   usage="Usage: $0 [-o DATASET_DIR] [-n NUM_PACKAGES] [-l GHIDRA_SCRIPT_LOG_DIR] [-j NUM_GHIDRA_INSTANCES] [-f] [-F]
 
-Create the dataset by downloading and building packages, then disassembing using Ghidra.
+Create the dataset by downloading and building packages, then decompile using Ghidra.
 
     -o DATASET_DIR             Directory where the dataset is installed. Default: $DATASET_DIR
     -n NUM_PACKAGES            Number of packages to install from each repo (so we actually do x3 this). Default: all
@@ -61,13 +61,13 @@ fi
 # Run everything simultaneously, and run Ghidra in watch mode (Ghidra doesn't need to force because it will only process new files)
 (
   "$PARENT_DIR/apt/run.sh" -o "$DATASET_DIR/apt" -n "$NUM_PACKAGES" "$FORCE";
-  "$PARENT_DIR/ghidra/run.sh" -o "$DATASET_DIR/apt" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES" -w "$DATASET_DIR/apt/stats"
+  "$PARENT_DIR/ghidra/run.sh" -o "$DATASET_DIR/apt" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES"
 ) &
 (
   "$PARENT_DIR/vcpkg/run.sh" -o "$DATASET_DIR/vcpkg" -n "$NUM_PACKAGES" "$FORCE";
-  "$PARENT_DIR/ghidra/run.sh" -o "$DATASET_DIR/vcpkg/buildtrees" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES" -w "$DATASET_DIR/vcpkg/stats"
+  "$PARENT_DIR/ghidra/run.sh" -o "$DATASET_DIR/vcpkg/buildtrees" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES"
 ) &
 (
   "$PARENT_DIR/conan/run.sh" -o "$DATASET_DIR/conan" -n "$NUM_PACKAGES" "$FORCE";
-  "$PARENT_DIR/ghidra/run.sh" -o "$DATASET_DIR/conan/data" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES" -w "$DATASET_DIR/vcpkg/stats"
+  "$PARENT_DIR/ghidra/run.sh" -o "$DATASET_DIR/conan/data" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES"
 ) &

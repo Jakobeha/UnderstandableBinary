@@ -1,6 +1,6 @@
 # get-data
 
-Create the code dataset by downloading, building, and disassembling
+Create the code dataset by downloading, building, and decompiling
 
 ## FILES
 

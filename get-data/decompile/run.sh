@@ -24,7 +24,8 @@ DATASET_DIR should contain subdirectories containing artifacts; each artifact is
     -w STATS_DIR      Watch for new files (empty STATS_DIR/*.success files are markers) and decompile them.
                       This changes the mode so that Ghidra will only decompile *.success marked files.
                       However it will attempt to decompile old *.success files, overwriting if -f or -F is passed,
-                      else skipping unless the file actually needs to be decompiled. Default: \"\" (no watch mode)
+                      else skipping unless the file actually needs to be decompiled. Default: \"\" (no watch mode).
+                      TODO: not currently implemented (does nothing)
     -l SCRIPT_LOG_DIR Directory where the script logs are stored. Default: $PARENT_DIR/../../local/ghidra-logs
     -j NUM_INSTANCES  Number of processes to run in parallel, 0 for as many as possible. Default: 1
     -s                Skip decompiling failures as well as successes (successes skipped unless -f or -F). Default: false
