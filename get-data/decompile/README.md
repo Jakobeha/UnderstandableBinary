@@ -1,6 +1,6 @@
-# get-data/disassemble
+# get-data/decompile
 
-Disassemble the code in the dataset we've already generated using Ghidra and a Ghidra script.
+decompile the code in the dataset we've already generated using Ghidra and a Ghidra script.
 
 ## Setup requirements
 
@@ -10,7 +10,7 @@ Disassemble the code in the dataset we've already generated using Ghidra and a G
 
 ## Files
 
-`run.sh [-o DATASET_DIR] [-l SCRIPT_LOG_DIR] [-j NUM_INSTANCES] [-f] [-F]` to disassemble files in DATASET_DIR (output files are in the same directory as the inputs)
+`run.sh [-o DATASET_DIR] [-l SCRIPT_LOG_DIR] [-j NUM_INSTANCES] [-f] [-F]` to decompile files in DATASET_DIR (output files are in the same directory as the inputs)
 
 More info:
 

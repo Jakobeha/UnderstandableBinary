@@ -38,7 +38,7 @@ def main():
 
     get_data_parser = subparsers.add_parser(
         "get-data",
-        help="download, build, and disassemble the sources to get data to generate examples from",
+        help="download, build, and decompile the sources to get data to generate examples from",
         add_help=False
     )
     get_data_parser.add_argument('-h', action="store_true")

@@ -39,7 +39,7 @@ def gen_transform_dir(
     # noinspection PyShadowingNames
     def transform_file(src: Path, dest: Path):
         for code_type in code_types:
-            for extension in chain(code_type.bytecode_extensions, code_type.disassembled_extensions):
+            for extension in chain(code_type.bytecode_extensions, code_type.decompiled_extensions):
                 if src.name.endswith(extension):
                     dest_name = src.name[:-len(extension)] + code_type.source_extension_for(src)
                     # don't need to pass extension because it's in src

@@ -15,7 +15,7 @@ def _transform_code1(tokenizer: Tokenizer, model, input: TransformStr) -> Transf
 
 
 def transform_code(tokenizer: Tokenizer, code_type: CodeType, model, src: Path) -> str | bytes:
-    model_inputs = code_type.process_disassembled(src)
+    model_inputs = code_type.process_decompiled(src)
     model_outputs = (_transform_code1(tokenizer, model, model_input) for model_input in model_inputs)
     return code_type.process_source(model_outputs)
 

@@ -16,7 +16,7 @@ from utils import chunk2
 class _CExampleDb(ExampleDb):
     def __init__(self, language: Language, parser: Parser):
         self.source_functions = {}
-        self.disassembled_functions = {}
+        self.decompiled_functions = {}
         self.language = language
         self.parser = parser
 
@@ -39,48 +39,48 @@ class _CExampleDb(ExampleDb):
         finally:
             return num_examples_added
 
-    def add_disassembled(self, path: Path) -> int:
+    def add_decompiled(self, path: Path) -> int:
         if path.stat().st_size == 0:
             # Some files are empty (file existence tells Ghidra to ignore, but there is nothing extractable)
             log.debug(f"Skipping empty file {path}")
             return 0
-        with path.open("rb") as disassembled_file:
+        with path.open("rb") as decompiled_file:
             # We don't want to fail on non-utf8 files (which do exist in the data for some reason)
-            disassembled_text = disassembled_file.read().decode("utf-8", errors="ignore")
-        # Functions in disassembled code are already denoted
-        disassembled_components = re.split(r"^// FUNCTION (.+)$", disassembled_text, flags=re.MULTILINE)
-        if len(disassembled_components) % 2 != 1:
-            log.warning(f"Bad disassembled data format in {path} ({len(disassembled_components)} components):\n" +
-                        "\n---\n".join(disassembled_components))
+            decompiled_text = decompiled_file.read().decode("utf-8", errors="ignore")
+        # Functions in decompiled code are already denoted
+        decompiled_components = re.split(r"^// FUNCTION (.+)$", decompiled_text, flags=re.MULTILINE)
+        if len(decompiled_components) % 2 != 1:
+            log.warning(f"Bad decompiled data format in {path} ({len(decompiled_components)} components):\n" +
+                        "\n---\n".join(decompiled_components))
             return 0
         num_examples_added = 0
-        for function_name, function_text in chunk2(disassembled_components[1:]):
+        for function_name, function_text in chunk2(decompiled_components[1:]):
             _, function_text, _ = _split_function(function_text)
             function_id = self._get_function_id(path, function_name)
-            if function_id not in self.disassembled_functions:
+            if function_id not in self.decompiled_functions:
                 num_examples_added += 1
-            self.disassembled_functions[function_id] = function_text
+            self.decompiled_functions[function_id] = function_text
         return num_examples_added
 
     def build_examples(self) -> Iterator[tuple[ModelStr, ModelStr]]:
         missing_sources = set()
-        missing_disassembleds = set()
-        for function_id, disassembled_function in self.disassembled_functions.items():
+        missing_decompileds = set()
+        for function_id, decompiled_function in self.decompiled_functions.items():
             if function_id not in self.source_functions:
                 missing_sources.add(function_id)
                 continue
             source_function = self.source_functions.pop(function_id)
-            yield ModelStr(source_function), ModelStr(disassembled_function)
+            yield ModelStr(source_function), ModelStr(decompiled_function)
         for function_id, source_function in self.source_functions.items():
-            missing_disassembleds.add(function_id)
+            missing_decompileds.add(function_id)
         if len(missing_sources) > 0:
-            log.debug(f"Missing sources for {len(missing_sources)} disassembled functions:\n\t" +
+            log.debug(f"Missing sources for {len(missing_sources)} decompiled functions:\n\t" +
                       (" ".join(islice(missing_sources, 100)) + "..." if len(missing_sources) > 100
                        else " ".join(missing_sources)))
-        if len(missing_disassembleds) > 0:
-            log.debug(f"Missing disassembleds for {len(missing_disassembleds)} source functions:\n\t" +
-                      (" ".join(islice(missing_disassembleds, 100)) + "..." if len(missing_disassembleds) > 100
-                       else " ".join(missing_disassembleds)))
+        if len(missing_decompileds) > 0:
+            log.debug(f"Missing decompileds for {len(missing_decompileds)} source functions:\n\t" +
+                      (" ".join(islice(missing_decompileds, 100)) + "..." if len(missing_decompileds) > 100
+                       else " ".join(missing_decompileds)))
 
     @staticmethod
     def _get_function_id(path: Path, function_name: str) -> str:
@@ -91,12 +91,12 @@ class _CExampleDb(ExampleDb):
 
 
 class _CCodeType(CodeType, ABC):
-    def __init__(self, language: Language, source_extensions, disassembled_extensions):
-        super().__init__(source_extensions, [".o"], disassembled_extensions)
+    def __init__(self, language: Language, source_extensions, decompiled_extensions):
+        super().__init__(source_extensions, [".o"], decompiled_extensions)
         self.language = language
         self.parser = Parser()
 
-    def source_extension_for(self, bytecode_or_disassembled_path: Path) -> str:
+    def source_extension_for(self, bytecode_or_decompiled_path: Path) -> str:
         return self.source_extensions[0]
 
     def ExampleDb(self) -> ExampleDb:
@@ -105,12 +105,12 @@ class _CCodeType(CodeType, ABC):
     def process_source(self, source_data: Iterator[TransformStr]) -> str | bytes:
         return "\n\n".join(source_text.string for source_text in source_data)
 
-    def process_disassembled(self, disassembled_path: Path) -> Iterator[TransformStr]:
-        self._assert_disassembled_suffix(disassembled_path)
+    def process_decompiled(self, decompiled_path: Path) -> Iterator[TransformStr]:
+        self._assert_decompiled_suffix(decompiled_path)
         # TODO: Do this properly - walk through *every* node using Cursor, but TransformStr.regular iff the node matches
         #   the query and body has "{" and TransformStr.pass_through otherwise
-        disassembled_functions = _scrape_functions(disassembled_path, self.language, self.parser)
-        for function in disassembled_functions:
+        decompiled_functions = _scrape_functions(decompiled_path, self.language, self.parser)
+        for function in decompiled_functions:
             if '{' in function.text:
                 head, body, tail = _split_function(function.text)
                 yield TransformStr.pass_through(head)
@@ -119,14 +119,14 @@ class _CCodeType(CodeType, ABC):
             else:
                 yield TransformStr.pass_through(function.text)
 
-    def _assert_source_suffix(self, disassembled_path: Path):
-        if not any(disassembled_path.name.endswith(src_ext) for src_ext in self.source_extensions):
-            raise ValueError(f"Expected source suffix, got {disassembled_path.suffix}")
+    def _assert_source_suffix(self, decompiled_path: Path):
+        if not any(decompiled_path.name.endswith(src_ext) for src_ext in self.source_extensions):
+            raise ValueError(f"Expected source suffix, got {decompiled_path.suffix}")
 
-    def _assert_disassembled_suffix(self, disassembled_path: Path):
-        if not any(disassembled_path.name.endswith(dis_ext) for dis_ext in self.disassembled_extensions):
+    def _assert_decompiled_suffix(self, decompiled_path: Path):
+        if not any(decompiled_path.name.endswith(dis_ext) for dis_ext in self.decompiled_extensions):
             raise ValueError(
-                f"Expected disassembled suffix, got {disassembled_path.suffix} (TODO: decompile bytecode using Ghidra "
+                f"Expected decompiled suffix, got {decompiled_path.suffix} (TODO: decompile bytecode using Ghidra "
                 f"so that we also accept)"
             )
 

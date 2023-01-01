@@ -17,7 +17,7 @@ STATS_DIR=""
 function show_help() {
   usage="Usage: $0 [-o DATASET_DIR] [-w STATS_DIR] [-l SCRIPT_LOG_DIR] [-j NUM_INSTANCES] [-s | -f | -F]
 
-Disassemble object files (.o) in DATASET_DIR using Ghidra, creating (.o.c) files and also Ghidra projects.
+decompile object files (.o) in DATASET_DIR using Ghidra, creating (.o.c) files and also Ghidra projects.
 DATASET_DIR should contain subdirectories containing artifacts; each artifact is processed separately.
 
     -o DATASET_DIR    Directory where the dataset is stored. Default: $PARENT_DIR/../../../UnderstandableBinary-data

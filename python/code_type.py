@@ -28,7 +28,7 @@ class ExampleDb(ABC):
         raise NotImplementedError("abstract")
 
     @abstractmethod
-    def add_disassembled(self, path: Path) -> int:
+    def add_decompiled(self, path: Path) -> int:
         raise NotImplementedError("abstract")
 
     @abstractmethod
@@ -40,10 +40,10 @@ class ExampleDb(ABC):
 
 
 class CodeType(ABC):
-    def __init__(self, source_extensions, bytecode_extensions, disassembled_extensions):
+    def __init__(self, source_extensions, bytecode_extensions, decompiled_extensions):
         self.source_extensions = source_extensions
         self.bytecode_extensions = bytecode_extensions
-        self.disassembled_extensions = disassembled_extensions
+        self.decompiled_extensions = decompiled_extensions
 
     # noinspection PyPep8Naming
     @abstractmethod
@@ -51,7 +51,7 @@ class CodeType(ABC):
         raise NotImplementedError("abstract")
 
     @abstractmethod
-    def source_extension_for(self, bytecode_or_disassembled_path: Path) -> str:
+    def source_extension_for(self, bytecode_or_decompiled_path: Path) -> str:
         raise NotImplementedError("abstract")
 
     @abstractmethod
@@ -59,7 +59,7 @@ class CodeType(ABC):
         raise NotImplementedError("abstract")
 
     @abstractmethod
-    def process_disassembled(self, input_path: Path) -> Iterator[TransformStr]:
+    def process_decompiled(self, input_path: Path) -> Iterator[TransformStr]:
         raise NotImplementedError("abstract")
 
     @abstractmethod

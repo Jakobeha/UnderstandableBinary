@@ -20,21 +20,21 @@ class _ModelDataRepoPbars:
             examples: Pbar,
             artifacts: Pbar,
             source_files: Pbar,
-            disassembled_files: Pbar):
+            decompiled_files: Pbar):
         self.examples = examples
         self.artifacts = artifacts
         self.source_files = source_files
-        self.disassembled_files = disassembled_files
+        self.decompiled_files = decompiled_files
 
 
 class _WithModelDataRepoPbars:
-    def __init__(self, num_artifacts: int, num_source_files: int, num_disassembled_files: int, max_len: int):
+    def __init__(self, num_artifacts: int, num_source_files: int, num_decompiled_files: int, max_len: int):
         # descriptions have trailing spaces to align the progress bars
         self.positions = count()
         self.examples = self._pbar("source-examples", max_len)
         self.artifacts = self._pbar("artifacts", num_artifacts)
         self.source_files = self._pbar("source-files", num_source_files)
-        self.disassembled_files = self._pbar("disassembled-files", num_disassembled_files)
+        self.decompiled_files = self._pbar("decompiled-files", num_decompiled_files)
 
     MAX_DESC_LEN = 18
 
@@ -51,21 +51,21 @@ class _WithModelDataRepoPbars:
             examples=self.examples.__enter__(),
             artifacts=self.artifacts.__enter__(),
             source_files=self.source_files.__enter__(),
-            disassembled_files=self.disassembled_files.__enter__()
+            decompiled_files=self.decompiled_files.__enter__()
         )
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.examples.__exit__(exc_type, exc_val, exc_tb)
         self.artifacts.__exit__(exc_type, exc_val, exc_tb)
         self.source_files.__exit__(exc_type, exc_val, exc_tb)
-        self.disassembled_files.__exit__(exc_type, exc_val, exc_tb)
+        self.decompiled_files.__exit__(exc_type, exc_val, exc_tb)
 
 
 class ModelData:
     def add_repo(self, code_types: list[CodeType], repo_dir: Path):
         """
         adds an repo (directory of artifacts;
-        each artifact is a self-contained directory of source and disassembled files)
+        each artifact is a self-contained directory of source and decompiled files)
         """
         if not repo_dir.exists():
             raise ValueError(f"repo dir {str(repo_dir)} does not exist")
@@ -81,13 +81,13 @@ class ModelData:
         log.info(f"** calculating size of repo {str(repo_dir)}")
         artifacts = set()
         num_source_files = 0
-        num_disassembled_files = 0
+        num_decompiled_files = 0
         for file in walk_files(repo_dir):
             artifact = get_artifact(file)
 
             for code_type in code_types:
-                if any(file.name.endswith(extension) for extension in code_type.disassembled_extensions):
-                    num_disassembled_files += 1
+                if any(file.name.endswith(extension) for extension in code_type.decompiled_extensions):
+                    num_decompiled_files += 1
                     artifacts.add(artifact)
                 elif any(file.name.endswith(extension) for extension in code_type.source_extensions):
                     num_source_files += 1
@@ -97,7 +97,7 @@ class ModelData:
         original_num_examples = len(self)
         start_time = time()
         try:
-            with _WithModelDataRepoPbars(len(artifacts), num_source_files, num_disassembled_files, self.max_len) \
+            with _WithModelDataRepoPbars(len(artifacts), num_source_files, num_decompiled_files, self.max_len) \
                     as pbars:
                 pbars.examples.update(len(self))
                 for artifact_dir in sorted(artifacts):
@@ -120,7 +120,7 @@ class ModelData:
 
     def _add_artifact(self, code_types: list[CodeType], artifact_dir: Path, pbars: _ModelDataRepoPbars) -> int:
         """
-        adds an artifact (self-contained directory of source and disassembled files).
+        adds an artifact (self-contained directory of source and decompiled files).
         This is private because of pbar: we could create a public version which creates a pbar for one artifact
         and call this within the with _WithModelDataArtifactPbars as pbars clause (then make pbars type a Union)
         """
@@ -129,7 +129,7 @@ class ModelData:
 
         dbs: Dict[CodeType, ExampleDb] = {code_type: code_type.ExampleDb() for code_type in code_types}
         num_processed_source_examples = 0
-        num_processed_disassembled_examples = 0
+        num_processed_decompiled_examples = 0
 
         log.info(f"* adding artifact {artifact_dir.name}")
         start_time = time()
@@ -138,15 +138,15 @@ class ModelData:
                 for code_type in code_types:
                     if not (0 < self.max_len <= num_processed_source_examples) and \
                             any(file.name.endswith(e) for e in code_type.source_extensions) and \
-                            not any(file.name.endswith(e) for e in code_type.disassembled_extensions):
+                            not any(file.name.endswith(e) for e in code_type.decompiled_extensions):
                         new_source_examples = dbs[code_type].add_source(file)
                         num_processed_source_examples += new_source_examples
                         pbars.source_files.update(1)
-                    if not (0 < self.max_len <= num_processed_disassembled_examples) and \
-                            any(file.name.endswith(e) for e in code_type.disassembled_extensions):
-                        new_disassembled_examples = dbs[code_type].add_disassembled(file)
-                        num_processed_disassembled_examples += new_disassembled_examples
-                        pbars.disassembled_files.update(1)
+                    if not (0 < self.max_len <= num_processed_decompiled_examples) and \
+                            any(file.name.endswith(e) for e in code_type.decompiled_extensions):
+                        new_decompiled_examples = dbs[code_type].add_decompiled(file)
+                        num_processed_decompiled_examples += new_decompiled_examples
+                        pbars.decompiled_files.update(1)
         except KeyboardInterrupt:
             log.info(f"* interrupted, not adding any more examples for artifact {artifact_dir.name}")
             for db in dbs.values():
@@ -162,10 +162,10 @@ class ModelData:
             num_examples_added_for_code_type = {}
             for code_type, db in dbs.items():
                 num_examples_added = 0
-                for source, disassembled in db.build_examples():
-                    self.source_disassembled_code_types.append(code_type)
+                for source, decompiled in db.build_examples():
+                    self.source_decompiled_code_types.append(code_type)
                     self.sources.append(source)
-                    self.disassembleds.append(disassembled)
+                    self.decompileds.append(decompiled)
                     num_examples_added += 1
                 total_num_examples_added += num_examples_added
                 num_examples_added_for_code_type[code_type] = num_examples_added
@@ -181,46 +181,46 @@ class ModelData:
     def split_off_end(self, interval: float):
         split_index = int(len(self) * interval)
         rhs = ModelData()
-        rhs.source_disassembled_code_types = self.source_disassembled_code_types[split_index:]
+        rhs.source_decompiled_code_types = self.source_decompiled_code_types[split_index:]
         rhs.sources = self.sources[split_index:]
-        rhs.disassembleds = self.disassembleds[split_index:]
-        self.source_disassembled_code_types = self.source_disassembled_code_types[:split_index]
+        rhs.decompileds = self.decompileds[split_index:]
+        self.source_decompiled_code_types = self.source_decompiled_code_types[:split_index]
         self.sources = self.sources[:split_index]
-        self.disassembleds = self.disassembleds[:split_index]
+        self.decompileds = self.decompileds[:split_index]
         return rhs
 
     def limit_code_types(self, code_types: list[CodeType]):
         i = 0
         while i < len(self):
-            if self.source_disassembled_code_types[i] not in code_types:
-                self.source_disassembled_code_types.pop(i)
+            if self.source_decompiled_code_types[i] not in code_types:
+                self.source_decompiled_code_types.pop(i)
                 self.sources.pop(i)
-                self.disassembleds.pop(i)
+                self.decompileds.pop(i)
             else:
                 i += 1
 
     # noinspection PyShadowingNames
     def limit_count(self, count: int):
-        self.source_disassembled_code_types = self.source_disassembled_code_types[:count]
+        self.source_decompiled_code_types = self.source_decompiled_code_types[:count]
         self.sources = self.sources[:count]
-        self.disassembleds = self.disassembleds[:count]
+        self.decompileds = self.decompileds[:count]
 
     def __len__(self):
         return len(self.sources)
 
     def __init__(self, max_len: int = 0):
         self.max_len = max_len
-        self.source_disassembled_code_types = []
+        self.source_decompiled_code_types = []
         self.sources = []
-        self.disassembleds = []
+        self.decompileds = []
 
     def postprocess(self):
         if len(self) > 0:
-            sources_and_disassembleds_and_code_types = \
-                list(zip(self.sources, self.disassembleds, self.source_disassembled_code_types))
-            sources_and_disassembleds_and_code_types.sort(key=lambda x: len(x[0]))
-            self.sources, self.disassembleds, self.source_disassembled_code_types = \
-                [list(s) for s in zip(*sources_and_disassembleds_and_code_types)]
+            sources_and_decompileds_and_code_types = \
+                list(zip(self.sources, self.decompileds, self.source_decompiled_code_types))
+            sources_and_decompileds_and_code_types.sort(key=lambda x: len(x[0]))
+            self.sources, self.decompileds, self.source_decompiled_code_types = \
+                [list(s) for s in zip(*sources_and_decompileds_and_code_types)]
 
     PICKLE_PROTOCOL = 5
 
@@ -244,7 +244,7 @@ class ModelDataset(torch.utils.data.Dataset):
     def __init__(self, data: ModelData, tokenizer: Tokenizer):
         if len(data) == 0:
             raise ValueError("Cannot create dataset from no data")
-        self.encodings = tokenize(tokenizer, data.disassembleds)
+        self.encodings = tokenize(tokenizer, data.decompileds)
         self.labels = tokenize(tokenizer, data.sources)
 
     def __len__(self):

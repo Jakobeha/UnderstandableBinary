@@ -2,11 +2,11 @@
 
 ## What is this?
 
-This is a project to use machine learning to convert raw disassembled binary files into cleaner variations.
+This is a project to use machine learning to convert raw decompiled binary files into cleaner variations.
 
-We take a large dataset of C/C++ code, compile it, disassemble the binaries, then train a model to translate the disassembled binaries into their original version,.
+We take a large dataset of C/C++ code, compile it, decompile the binaries, then train a model to translate the decompiled binaries into their original version,.
 
-Afterward, we have a model which can convert ugly disassembled code into cleaner code.
+Afterward, we have a model which can convert ugly decompiled code into cleaner code.
 
 ## How to install
 
@@ -44,7 +44,7 @@ The root is an IntelliJ project, however modules are in subdirectories.
 - `get-data/`: Generate dataset
   - `apt/`: Download and build code from debian APT repo
   - `vcpkg/`: Download and build code from [vcpkg](https://vcpkg.io/en/index.html) repo
-  - `disassemble/`: Disassemble binaries using [Ghidra](https://ghidra-sre.org/)
+  - `decompile/`: decompile binaries using [Ghidra](https://ghidra-sre.org/)
 - `local/`: Local directory where you can store scratch data which isn't the dataset. Also, some log files are stored here
   - `ghidra_logs/`: Ghidra script log files 
 - `docs/`: documentation

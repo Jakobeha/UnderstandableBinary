@@ -89,7 +89,7 @@ public class BatchDecompile extends GhidraScript {
             this.logInfo( "*** DECOMPILING %d FILES", numToDecompile);
         } else {
             var numToSkip = (int)importedPaths.stream().filter(importedPath ->
-                    Files.exists(getDisassembledPath(importedPath.binaryPath))
+                    Files.exists(getdecompiledPath(importedPath.binaryPath))
             ).count();
             numToDecompile = importedPaths.size();
             this.logInfo("*** DECOMPILING %d NEW FILES ( + SKIPPING %d)", numToDecompile, numToSkip);
@@ -98,9 +98,9 @@ public class BatchDecompile extends GhidraScript {
         for (var importedPath : importedPaths) {
             var binaryPath = importedPath.binaryPath;
             var program = importedPath.program;
-            var disassembledPath = getDisassembledPath(binaryPath);
+            var decompiledPath = getdecompiledPath(binaryPath);
             try {
-                this.decompile(binaryPath, program, disassembledPath, decompileExistingFiles, numToDecompile, numDecompiled);
+                this.decompile(binaryPath, program, decompiledPath, decompileExistingFiles, numToDecompile, numDecompiled);
             } catch (Exception e) {
                 this.logError("Error decompiling " + binaryPath, e);
             }
@@ -145,21 +145,21 @@ public class BatchDecompile extends GhidraScript {
     private void decompile(
             Path binaryPath,
             Program program,
-            Path disassembledPath,
+            Path decompiledPath,
             boolean decompileExistingFiles,
             int numToDecompile,
             AtomicInteger numDecompiled
     ) throws Exception {
-        if (!decompileExistingFiles && Files.exists(disassembledPath)) {
+        if (!decompileExistingFiles && Files.exists(decompiledPath)) {
             this.logInfo("Skipping %s (already decompiled)", binaryPath);
             return;
         }
         var progress = (float)numDecompiled.get() / (float)numToDecompile * 100f;
         var index = numDecompiled.incrementAndGet();
 
-        // Create empty file so that if we fail, we don't retry when we-running disassemble without processExistingFiles
-        Files.deleteIfExists(disassembledPath);
-        Files.createFile(disassembledPath);
+        // Create empty file so that if we fail, we don't retry when we-running decompile without processExistingFiles
+        Files.deleteIfExists(decompiledPath);
+        Files.createFile(decompiledPath);
 
         this.logInfo("** ANALYZING %s... (%d/%d aka %.02f%% of phase 2/2)", binaryPath, index, numToDecompile, progress);
         var transaction = program.startTransaction("BatchDecompile analyze");
@@ -183,12 +183,12 @@ public class BatchDecompile extends GhidraScript {
         try {
             for (var func : program.getFunctionManager().getFunctions(true)) {
                 try {
-                    var disassembled = decompiler.decompile(func);
-                    if (disassembled.contains("Truncating control flow here")) {
+                    var decompiled = decompiler.decompile(func);
+                    if (decompiled.contains("Truncating control flow here")) {
                         this.logWarn("Bad decompile: " + binaryPath.getFileName() + " function " + func.getName(true));
                     } else {
-                        Files.writeString(disassembledPath, "// FUNCTION " + func.getName(), StandardOpenOption.APPEND);
-                        Files.writeString(disassembledPath, disassembled, StandardOpenOption.APPEND);
+                        Files.writeString(decompiledPath, "// FUNCTION " + func.getName(), StandardOpenOption.APPEND);
+                        Files.writeString(decompiledPath, decompiled, StandardOpenOption.APPEND);
                     }
                 } catch (Exception e) {
                     if (firstLog) {
@@ -240,7 +240,7 @@ public class BatchDecompile extends GhidraScript {
         return project.getProjectLocator().getProjectDir().toPath().toAbsolutePath().normalize();
     }
 
-    private Path getDisassembledPath(Path binaryPath) {
+    private Path getdecompiledPath(Path binaryPath) {
         return binaryPath.getParent().resolve(binaryPath.getFileName().toString() + ".c");
     }
 
