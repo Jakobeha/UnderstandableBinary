@@ -3,7 +3,7 @@
 NUM_INSTANCES=1
 PARENT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 DATASET_DIR=$PARENT_DIR/../../../UnderstandableBinary-data
-SCRIPT_LOG_DIR=$PARENT_DIR/../local/ghidra-logs
+SCRIPT_LOG_DIR=$PARENT_DIR/../../local/ghidra-logs
 GHIDRA_DIR=$PARENT_DIR/ghidra
 GHIDRA_SCRIPT_NAME="BatchDecompile.java"
 # Ghidra uses 'false' and 'true' instead of '0' and '1'
