@@ -88,3 +88,9 @@ def chunk2(iterable: Iterable[T]) -> Iterable[tuple[T, T]]:
 class Reference(Generic[T]):
     def __init__(self, value: T):
         self.value = value
+
+
+def run_script(script_subpath: str, args: list[str]):
+    """Run shell script in PROJECT_PATH/subpath with args"""
+    script_path = PROJECT_PATH / script_subpath
+    os.system(f"{str(script_path)} {' '.join(args)}")

@@ -1,11 +1,17 @@
 from pathlib import Path
+from sys import argv
 
 from code_types import ALL_LANGS
 from generate import generate
 from train import train
 from transform_ir import transform_ir
 from transform import transform
-from utils import DEFAULT_DATASET_PATH, DEFAULT_MODEL_PATH, INT32_MAX, path_or_float, DEFAULT_EXAMPLES_PATH
+from utils import DEFAULT_DATASET_PATH, DEFAULT_MODEL_PATH, INT32_MAX, path_or_float, DEFAULT_EXAMPLES_PATH, run_script
+
+
+def get_data_cmd(_args):
+    # Forward to get-data/run.sh (argv[2:] drops cmdline.py and subprocess argument)
+    run_script("get-data/run.sh", argv[2:])
 
 
 def generate_cmd(args):
@@ -29,6 +35,15 @@ def main():
     parser = argparse.ArgumentParser()
 
     subparsers = parser.add_subparsers(required=True)
+
+    get_data_parser = subparsers.add_parser(
+        "get-data",
+        help="download, build, and disassemble the sources to get data to generate examples from",
+        add_help=False
+    )
+    get_data_parser.add_argument('-h', action="store_true")
+    get_data_parser.add_argument('...', nargs=argparse.REMAINDER)
+    get_data_parser.set_defaults(func=get_data_cmd)
 
     generate_parser = subparsers.add_parser(
         "gen-examples",

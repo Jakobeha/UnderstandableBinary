@@ -14,9 +14,10 @@ function show_help() {
 Create the dataset by downloading and building packages, then disassembing using Ghidra.
 
     -o DATASET_DIR             Directory where the dataset is installed. Default: $DATASET_DIR
-    -n NUM_PACKAGES            Number of packages to install. Default: all
+    -n NUM_PACKAGES            Number of packages to install from each repo (so we actually do x3 this). Default: all
     -l GHIDRA_SCRIPT_LOG_DIR   Directory where the Ghidra script logs are stored. Default: $GHIDRA_SCRIPT_LOG_DIR
-    -j NUM_GHIDRA_INSTANCES    Number of Ghidra instances to run in parallel. Default: $NUM_GHIDRA_INSTANCES
+    -j NUM_GHIDRA_INSTANCES    Number of Ghidra instances to run in parallel from each repo (so we actually do up to 3x
+                               this). Default: $NUM_GHIDRA_INSTANCES
     -f                         Recreate the entire dataset.
                                Otherwise we will resume and skip already-processed (e.g. if it exited early) Default: false"
   echo "$usage"
@@ -45,11 +46,6 @@ done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
 
-if [ "$NUM_GHIDRA_INSTANCES" -lt 2 ]; then
-  echo "ERROR: NUM_GHIDRA_INSTANCES must be at least 2"
-  exit 1
-fi
-
 # *don't* remove the entire directory if -f, because we instead pass to children, because we also need to remove the docker container
 if [ "$RECREATE" -eq 1 ]; then
   FORCE="-f"
@@ -63,7 +59,15 @@ if [ ! -d "$DATASET_DIR" ]; then
 fi
 
 # Run everything simultaneously, and run Ghidra in watch mode (Ghidra doesn't need to force because it will only process new files)
-$PARENT_DIR/apt/run.sh -o "$DATASET_DIR/apt" -n "$((NUM_PACKAGES / 2))" "$FORCE" &
-$PARENT_DIR/vcpkg/run.sh -o "$DATASET_DIR/vcpkg" -n "$((NUM_PACKAGES / 2))" "$FORCE" &
-$PARENT_DIR/ghidra/run.sh -o "$DATASET_DIR/apt" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$((NUM_GHIDRA_INSTANCES / 2))" -w "$DATASET_DIR/apt/stats" &
-$PARENT_DIR/ghidra/run.sh -o "$DATASET_DIR/vcpkg/packages" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$((NUM_GHIDRA_INSTANCES / 2))" -w "$DATASET_DIR/vcpkg/stats" &
+(
+  "$PARENT_DIR/apt/run.sh" -o "$DATASET_DIR/apt" -n "$NUM_PACKAGES" "$FORCE";
+  "$PARENT_DIR/ghidra/run.sh" -o "$DATASET_DIR/apt" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES" -w "$DATASET_DIR/apt/stats"
+) &
+(
+  "$PARENT_DIR/vcpkg/run.sh" -o "$DATASET_DIR/vcpkg" -n "$NUM_PACKAGES" "$FORCE";
+  "$PARENT_DIR/ghidra/run.sh" -o "$DATASET_DIR/vcpkg/buildtrees" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES" -w "$DATASET_DIR/vcpkg/stats"
+) &
+(
+  "$PARENT_DIR/conan/run.sh" -o "$DATASET_DIR/conan" -n "$NUM_PACKAGES" "$FORCE";
+  "$PARENT_DIR/ghidra/run.sh" -o "$DATASET_DIR/conan/data" -n "$NUM_PACKAGES" -l "$GHIDRA_SCRIPT_LOG_DIR" -j "$NUM_GHIDRA_INSTANCES" -w "$DATASET_DIR/vcpkg/stats"
+) &

@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/get-data/apt/apt.iml" filepath="$PROJECT_DIR$/get-data/apt/apt.iml" />
+      <module fileurl="file://$PROJECT_DIR$/get-data/conan/conan.iml" filepath="$PROJECT_DIR$/get-data/conan/conan.iml" />
       <module fileurl="file://$PROJECT_DIR$/get-data/disassemble/disassemble.iml" filepath="$PROJECT_DIR$/get-data/disassemble/disassemble.iml" />
       <module fileurl="file://$PROJECT_DIR$/docs/docs.iml" filepath="$PROJECT_DIR$/docs/docs.iml" />
       <module fileurl="file://$PROJECT_DIR$/local/local.iml" filepath="$PROJECT_DIR$/local/local.iml" />
