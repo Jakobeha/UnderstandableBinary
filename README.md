@@ -49,6 +49,12 @@ The root is an IntelliJ project, however modules are in subdirectories.
   - `ghidra_logs/`: Ghidra script log files 
 - `docs/`: documentation
 
+## Related
+
+- [N-Bref](https://github.com/facebookresearch/nbref): A neural-based decompiler framework and binary analysis tool
+- [G-3PO](https://medium.com/tenable-techblog/g-3po-a-protocol-droid-for-ghidra-4b46fa72f1ff): generate a doc-comment for a decompiled function (uses GPT3 and Ghidra)
+- [Gepetto](https://github.com/JusticeRage/Gepetto): generate a doc-comment for a decompiled function, plus rename variables and add comments in the function body (uses GPT3 and IDA Pro)
+
 ## Contributing
 
 Conventions:
