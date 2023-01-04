@@ -32,7 +32,7 @@ class ExampleDb(ABC):
         raise NotImplementedError("abstract")
 
     @abstractmethod
-    def build_examples(self) -> Iterator[tuple[ModelStr, ModelStr]]:
+    def build_examples(self) -> Iterator[tuple[str, ModelStr, ModelStr]]:
         raise NotImplementedError("abstract")
 
     def process_interrupt(self):

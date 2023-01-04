@@ -62,7 +62,7 @@ class _CExampleDb(ExampleDb):
             self.decompiled_functions[function_id] = function_text
         return num_examples_added
 
-    def build_examples(self) -> Iterator[tuple[ModelStr, ModelStr]]:
+    def build_examples(self) -> Iterator[tuple[str, ModelStr, ModelStr]]:
         missing_sources = set()
         missing_decompileds = set()
         for function_id, decompiled_function in self.decompiled_functions.items():
@@ -70,7 +70,7 @@ class _CExampleDb(ExampleDb):
                 missing_sources.add(function_id)
                 continue
             source_function = self.source_functions.pop(function_id)
-            yield ModelStr(source_function), ModelStr(decompiled_function)
+            yield function_id, ModelStr(source_function), ModelStr(decompiled_function)
         for function_id, source_function in self.source_functions.items():
             missing_decompileds.add(function_id)
         if len(missing_sources) > 0:

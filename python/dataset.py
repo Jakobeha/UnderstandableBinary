@@ -1,10 +1,12 @@
 import pickle
+from io import TextIOWrapper
 from itertools import count
 from pathlib import Path
+from random import Random
 from time import time
-from typing import BinaryIO, Dict
+from typing import BinaryIO, Dict, Optional
 
-from code_type import CodeType, ExampleDb
+from code_type import CodeType, ExampleDb, ModelStr
 from log import log, logging_progress_bar, WithLoggingPbar, Pbar
 from model import tokenize
 from tokenizers import Tokenizer
@@ -162,8 +164,17 @@ class ModelData:
             num_examples_added_for_code_type = {}
             for code_type, db in dbs.items():
                 num_examples_added = 0
-                for source, decompiled in db.build_examples():
+                for ident, source, decompiled in db.build_examples():
+                    source_empty = source.strip() == ""
+                    decompiled_empty = decompiled.strip() == ""
+                    if source_empty and not decompiled_empty:
+                        log.warning(f"source is empty but not decompiled: {ident}")
+                        continue
+                    elif decompiled_empty and not source_empty:
+                        log.warning(f"decompiled is empty but not source: {ident}")
+                        continue
                     self.source_decompiled_code_types.append(code_type)
+                    self.idents.append(ident)
                     self.sources.append(source)
                     self.decompileds.append(decompiled)
                     num_examples_added += 1
@@ -182,9 +193,11 @@ class ModelData:
         split_index = int(len(self) * interval)
         rhs = ModelData()
         rhs.source_decompiled_code_types = self.source_decompiled_code_types[split_index:]
+        rhs.idents = self.idents[split_index:]
         rhs.sources = self.sources[split_index:]
         rhs.decompileds = self.decompileds[split_index:]
         self.source_decompiled_code_types = self.source_decompiled_code_types[:split_index]
+        self.idents = self.idents[:split_index]
         self.sources = self.sources[:split_index]
         self.decompileds = self.decompileds[:split_index]
         return rhs
@@ -194,33 +207,44 @@ class ModelData:
         while i < len(self):
             if self.source_decompiled_code_types[i] not in code_types:
                 self.source_decompiled_code_types.pop(i)
+                self.idents.pop(i)
                 self.sources.pop(i)
                 self.decompileds.pop(i)
             else:
                 i += 1
 
     # noinspection PyShadowingNames
-    def limit_count(self, count: int):
-        self.source_decompiled_code_types = self.source_decompiled_code_types[:count]
-        self.sources = self.sources[:count]
-        self.decompileds = self.decompileds[:count]
+    def limit_count(self, count: int, skip: int = 0):
+        start = skip
+        end = min(len(self), start + count)
+        self.source_decompiled_code_types = self.source_decompiled_code_types[start:end]
+        self.idents = self.idents[start:end]
+        self.sources = self.sources[start:end]
+        self.decompileds = self.decompileds[start:end]
+
+    def shuffle(self, seed: int):
+        # Need to create separate Random instance since Random has state
+        Random(seed).shuffle(self.sources)
+        Random(seed).shuffle(self.decompileds)
+        Random(seed).shuffle(self.idents)
+        Random(seed).shuffle(self.source_decompiled_code_types)
 
     def __len__(self):
         return len(self.sources)
 
     def __init__(self, max_len: int = 0):
         self.max_len = max_len
-        self.source_decompiled_code_types = []
-        self.sources = []
-        self.decompileds = []
+        self.source_decompiled_code_types: list[CodeType] = []
+        self.idents: list[str] = []
+        self.sources: list[ModelStr] = []
+        self.decompileds: list[ModelStr] = []
 
     def postprocess(self):
         if len(self) > 0:
-            sources_and_decompileds_and_code_types = \
-                list(zip(self.sources, self.decompileds, self.source_decompiled_code_types))
-            sources_and_decompileds_and_code_types.sort(key=lambda x: len(x[0]))
-            self.sources, self.decompileds, self.source_decompiled_code_types = \
-                [list(s) for s in zip(*sources_and_decompileds_and_code_types)]
+            items = list(zip(self.sources, self.decompileds, self.idents, self.source_decompiled_code_types))
+            items.sort(key=lambda x: max(len(x[0]), len(x[1])))
+            self.sources, self.decompileds, self.idents, self.source_decompiled_code_types = \
+                [list(s) for s in zip(*items)]
 
     PICKLE_PROTOCOL = 5
 
@@ -233,9 +257,26 @@ class ModelData:
             pickle.dump(self, path_or_file, protocol=self.PICKLE_PROTOCOL)
 
     @staticmethod
-    def load(path: Path):
+    def load(path: Path) -> "ModelData":
         with path.open("rb") as file:
             return pickle.load(file)
+
+    def print(
+            self,
+            sep: Optional[str] = ' ',
+            end: Optional[str] = '\n',
+            file: Optional[TextIOWrapper] = None):
+        def _print(*values, flush: bool = False):
+            print(*values, sep=sep, end=end, file=file, flush=flush)
+
+        _print(f"ModelData")
+        for i, (code_type, ident, source, decompiled) in \
+                enumerate(zip(self.source_decompiled_code_types, self.idents, self.sources, self.decompileds)):
+            _print(f"  {i}: {ident} ({code_type})")
+            _print(f"    source:")
+            _print("      " + source.replace("\n", "\n      "), flush=True)
+            _print(f"    decompiled:")
+            _print("      " + decompiled.replace("\n", "\n      "), flush=True)
 
 
 # (idk why but IntelliJ can't find torch.utils.data)

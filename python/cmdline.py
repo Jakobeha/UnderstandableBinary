@@ -3,6 +3,7 @@ from sys import argv
 
 from code_types import ALL_LANGS
 from generate import generate
+from inspect_ import inspect
 from train import train
 from transform_ir import transform_ir
 from transform import transform
@@ -16,6 +17,10 @@ def get_data_cmd(_args):
 
 def generate_cmd(args):
     generate(args.i, args.o, args.l, args.n, args.f)
+
+
+def inspect_cmd(args):
+    inspect(args.i, args.l, args.n, args.skip, args.seed)
 
 
 def train_cmd(args):
@@ -79,6 +84,42 @@ def main():
         default=INT32_MAX
     )
     generate_parser.set_defaults(func=generate_cmd)
+
+    inspect_parser = subparsers.add_parser(
+        "inspect",
+        help="print model examples to stdout"
+    )
+    inspect_parser.add_argument(
+        "-i",
+        type=Path,
+        help=f"model examples file (default: {DEFAULT_EXAMPLES_PATH})",
+        default=DEFAULT_EXAMPLES_PATH
+    )
+    inspect_parser.add_argument(
+        "-l",
+        type=str,
+        help="languages (separated by commas, default = all)",
+        default=ALL_LANGS
+    )
+    inspect_parser.add_argument(
+        "-n",
+        type=int,
+        help="number of examples to print (default = all)",
+        default=INT32_MAX
+    )
+    inspect_parser.add_argument(
+        "--skip",
+        type=int,
+        help="number of examples to skip (use with -n only print fragments of a dataset, default = 0)",
+        default=0
+    )
+    inspect_parser.add_argument(
+        "--seed",
+        type=int,
+        help="if present, shuffles the dataset with the given seed before (taking -n and --skip and) printing",
+        default=0
+    )
+    inspect_parser.set_defaults(func=inspect_cmd)
 
     train_parser = subparsers.add_parser(
         "train",
