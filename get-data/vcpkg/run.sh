@@ -2,6 +2,7 @@
 
 PARENT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 INSTALL_DIR=$PARENT_DIR/../../../UnderstandableBinary-data/vcpkg
+STATS_DIR=$INSTALL_DIR-stats
 NUM_PACKAGES=4294967295
 RECREATE=0
 
@@ -46,21 +47,21 @@ fi
 
 if [ ! -d "$INSTALL_DIR" ]; then
   git clone https://github.com/microsoft/vcpkg "$INSTALL_DIR"
-  mkdir "$INSTALL_DIR/stats"
 fi
+mkdir -p "$STATS_DIR"
 
 cd "$INSTALL_DIR" || exit 1
 
 echo "*** Searching for packages to install"
-vcpkg search | cut -d ' ' -f1 | tail -r | tail -n +2 | tail -r | head -n "$NUM_PACKAGES" > packages.txt
+vcpkg search | cut -d ' ' -f1 | tac | tail -n +2 | tac | head -n "$NUM_PACKAGES" > packages.txt
 
 echo "*** Installing $(< packages.txt wc -l) packages"
 NUM_SUCCESS=0
 while read -r package; do
-  if [ -f "stats/$package.failed" ]; then
+  if [ -f "$STATS_DIR/$package.failed" ]; then
     echo "** Skipping $package (failed before, num success=$NUM_SUCCESS)"
     continue
-  elif [ -f "stats/$package.success" ]; then
+  elif [ -f "$STATS_DIR/$package.success" ]; then
     echo "** Skipping $package (already done, num success=$NUM_SUCCESS)"
     NUM_SUCCESS=$((NUM_SUCCESS + 1))
     continue
@@ -71,10 +72,10 @@ while read -r package; do
   if [ $? -ne 0 ]; then
     echo "** Failed to install $package"
     # Write file so that we skip in subsequent calls
-    touch "stats/$package.failed"
+    touch "$STATS_DIR/$package.failed"
     continue
   fi
-  touch "stats/$package.success"
+  touch "$STATS_DIR/$package.success"
   NUM_SUCCESS=$((NUM_SUCCESS + 1))
 done < packages.txt
 
